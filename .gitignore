@@ -110,3 +110,7 @@ ssl/
 # Temporary files
 tmp/
 temp/
+
+
+#stop workflow
+.github/
