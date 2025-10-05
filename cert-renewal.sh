@@ -27,7 +27,7 @@ fi
 # Stop nginx container to free up port 80
 log "Stopping nginx container..."
 cd "$PROJECT_DIR"
-docker-compose stop nginx
+docker compose stop nginx
 
 # Renew certificates
 log "Renewing certificates for $DOMAIN..."
@@ -49,13 +49,13 @@ if certbot renew --standalone --quiet; then
     
     # Restart nginx container
     log "Restarting nginx container..."
-    docker-compose up -d nginx
+    docker compose up -d nginx
     
     # Wait a moment for nginx to start
     sleep 5
     
     # Test if nginx is running
-    if docker-compose ps nginx | grep -q "Up"; then
+    if docker compose ps nginx | grep -q "Up"; then
         log "Nginx restarted successfully"
         
         # Test HTTPS connection
