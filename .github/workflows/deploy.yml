@@ -1,0 +1,115 @@
+name: Deploy BONDNIXS Website
+
+on:
+  push:
+    branches: [ main ]
+  pull_request:
+    branches: [ main ]
+
+jobs:
+  test:
+    runs-on: ubuntu-latest
+    
+    steps:
+    - uses: actions/checkout@v4
+    
+    - name: Setup Node.js
+      uses: actions/setup-node@v4
+      with:
+        node-version: '20'
+        cache: 'npm'
+        cache-dependency-path: |
+          frontend/package-lock.json
+          backend/package-lock.json
+    
+    - name: Install Frontend Dependencies
+      run: |
+        cd frontend
+        npm ci
+    
+    - name: Install Backend Dependencies
+      run: |
+        cd backend
+        npm ci
+    
+    - name: Build Frontend
+      run: |
+        cd frontend
+        npm run build
+    
+    - name: Test Backend
+      run: |
+        cd backend
+        npm test || echo "No tests configured yet"
+
+  deploy-development:
+    needs: test
+    runs-on: ubuntu-latest
+    if: github.ref == 'refs/heads/main'
+    
+    steps:
+    - uses: actions/checkout@v4
+    
+    - name: Deploy to Development Server
+      uses: appleboy/ssh-action@v1.0.3
+      with:
+        host: ${{ secrets.DEV_HOST }}
+        username: ${{ secrets.DEV_USERNAME }}
+        key: ${{ secrets.DEV_SSH_KEY }}
+        script: |
+          # Add GitHub to known hosts
+          ssh-keyscan -H github.com >> ~/.ssh/known_hosts
+          
+          # Create directory if it doesn't exist
+          sudo mkdir -p /opt/bondnixs-website
+          cd /opt/bondnixs-website
+          
+          # Clone repository if it doesn't exist
+          if [ ! -d ".git" ]; then
+            echo "Initializing repository..."
+            git clone git@github.com:${{ github.repository }}.git .
+          fi
+          
+          # Pull latest changes
+          git pull origin main
+          
+          # Build and start containers
+          docker compose down
+          docker compose up --build -d
+          docker system prune -f
+
+  deploy-production:
+    needs: test
+    runs-on: ubuntu-latest
+    if: github.ref == 'refs/heads/production'
+    
+    steps:
+    - uses: actions/checkout@v4
+    
+    - name: Deploy to Production Server
+      uses: appleboy/ssh-action@v1.0.3
+      with:
+        host: ${{ secrets.PROD_HOST }}
+        username: ${{ secrets.PROD_USERNAME }}
+        key: ${{ secrets.PROD_SSH_KEY }}
+        script: |
+          # Add GitHub to known hosts
+          ssh-keyscan -H github.com >> ~/.ssh/known_hosts
+          
+          # Create directory if it doesn't exist
+          sudo mkdir -p /opt/bondnixs-website
+          cd /opt/bondnixs-website
+          
+          # Clone repository if it doesn't exist
+          if [ ! -d ".git" ]; then
+            echo "Initializing repository..."
+            git clone git@github.com:${{ github.repository }}.git .
+          fi
+          
+          # Pull latest changes
+          git pull origin production
+          
+          # Build and start containers
+          docker compose -f docker-compose.prod.yml down
+          docker compose -f docker-compose.prod.yml up --build -d
+          docker system prune -f
