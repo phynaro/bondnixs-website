@@ -7,7 +7,7 @@ set -e
 
 # Configuration
 PROJECT_DIR="/opt/bondnixs-website"
-DOMAIN="bondnixs.co.th"
+DOMAIN="www.bondnixs.co.th"
 SSL_DIR="$PROJECT_DIR/ssl"
 LOG_FILE="/var/log/certbot-renewal.log"
 
