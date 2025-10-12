@@ -74,7 +74,7 @@ else
     
     # Restart nginx anyway
     log "Restarting nginx container..."
-    docker-compose up -d nginx
+    docker compose up -d nginx
     exit 1
 fi
 
