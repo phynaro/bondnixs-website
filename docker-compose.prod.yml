@@ -8,6 +8,12 @@ services:
     restart: unless-stopped
     networks:
       - bondnixs-network
+    healthcheck:
+      test: ["CMD", "wget", "--no-verbose", "--tries=1", "--spider", "http://localhost:3000"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+      start_period: 40s
 
   backend:
     build:
@@ -17,12 +23,24 @@ services:
       - NODE_ENV=production
       - DATABASE_URL=postgresql://bondnixs:${POSTGRES_PASSWORD}@postgres:5432/bondnixs_db
       - REDIS_URL=redis://redis:6379
+      - JWT_SECRET=${JWT_SECRET}
+      - CORS_ORIGIN=https://www.bondnixs.co.th
     restart: unless-stopped
     depends_on:
-      - postgres
-      - redis
+      postgres:
+        condition: service_healthy
+      redis:
+        condition: service_started
     networks:
       - bondnixs-network
+    volumes:
+      - backend_uploads:/app/uploads
+    healthcheck:
+      test: ["CMD", "node", "healthcheck.js"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+      start_period: 40s
 
   postgres:
     image: postgres:15
@@ -35,6 +53,12 @@ services:
     restart: unless-stopped
     networks:
       - bondnixs-network
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U bondnixs -d bondnixs_db"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+      start_period: 30s
 
   redis:
     image: redis:7-alpine
@@ -60,59 +84,11 @@ services:
     networks:
       - bondnixs-network
 
-  # Monitoring stack
-  prometheus:
-    image: prom/prometheus:latest
-    ports:
-      - "9090:9090"
-    volumes:
-      - ./monitoring/prometheus.yml:/etc/prometheus/prometheus.yml
-      - prometheus_data:/prometheus
-    command:
-      - '--config.file=/etc/prometheus/prometheus.yml'
-      - '--storage.tsdb.path=/prometheus'
-      - '--web.console.libraries=/etc/prometheus/console_libraries'
-      - '--web.console.templates=/etc/prometheus/consoles'
-      - '--storage.tsdb.retention.time=200h'
-      - '--web.enable-lifecycle'
-    restart: unless-stopped
-    networks:
-      - bondnixs-network
-
-  grafana:
-    image: grafana/grafana:latest
-    ports:
-      - "3001:3000"
-    environment:
-      - GF_SECURITY_ADMIN_PASSWORD=${GRAFANA_PASSWORD}
-    volumes:
-      - grafana_data:/var/lib/grafana
-    restart: unless-stopped
-    networks:
-      - bondnixs-network
-
-  cadvisor:
-    image: gcr.io/cadvisor/cadvisor:latest
-    ports:
-      - "8080:8080"
-    volumes:
-      - /:/rootfs:ro
-      - /var/run:/var/run:ro
-      - /sys:/sys:ro
-      - /var/lib/docker/:/var/lib/docker:ro
-      - /dev/disk/:/dev/disk:ro
-    privileged: true
-    devices:
-      - /dev/kmsg
-    restart: unless-stopped
-    networks:
-      - bondnixs-network
 
 volumes:
   postgres_data:
   redis_data:
-  prometheus_data:
-  grafana_data:
+  backend_uploads:
 
 networks:
   bondnixs-network:

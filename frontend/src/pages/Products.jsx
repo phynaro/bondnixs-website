@@ -1,77 +1,83 @@
+import { useState, useEffect } from 'react'
+import { Link } from 'react-router-dom'
+import { productAPI, categoryAPI, getImageUrl } from '../services/api'
+
 const Products = () => {
-  const productCategories = [
-    {
-      title: "Desktop Robots",
-      description: "Precision dispensing robots for automated manufacturing",
-      products: [
-        "DT-FN series Desktop Dispensing Robot",
-        "DT-200T 3-Axis Dispensing Robot", 
-        "DT-ST series DESKTOP DISPENSING ROBOT",
-        "DT-500GS Gantry Dispensing Robot",
-        "DT-Q series Costdown Robot",
-        "DT-500Q2Y Dual Tables Dispensing Robot",
-        "DT-LV series Lan Smart Vision Robot",
-        "DT-GS series Gantry Dispensing Robot",
-        "DT-DIY series 3-Axis Dispensing Robot",
-        "DT-HR series NEW! 4-axis Dispensing Robot",
-        "DT-ST-LV series AUTO ALIGNMENT SYSTEM ROBOT",
-        "DT-GLV series H Shape Auto Alignment System Robot"
-      ]
-    },
-    {
-      title: "Dispensing Controllers",
-      description: "Advanced control systems for precise dispensing operations",
-      products: [
-        "6000E-Standard Dispenser",
-        "9000F Micro-pressing Processor Digital Dispenser",
-        "8000D-Micro Processor Dispenser",
-        "RT-100 Peristaltic Glue Dispenser",
-        "9000E-Micro Processor Digital Dispenser",
-        "SP-1000 Syringe Pump Dispenser",
-        "VC-1000 Valve Controller",
-        "AVC-2100 Auger Valve Controller"
-      ]
-    },
-    {
-      title: "Dispensing Valves",
-      description: "High-precision valves for various dispensing applications",
-      products: [
-        "DV-300T-Diaphragm Valve",
-        "DV-500-Needle Off Spray Valve",
-        "DV-303-Suck-Back Valve",
-        "DV-500T- Conformal Coating Valve",
-        "DV-386-Needle Off Valve",
-        "PDV-7100 Precision auger valve"
-      ]
-    },
-    {
-      title: "Dispensing Accessories",
-      description: "Essential accessories and consumables for dispensing systems",
-      products: [
-        "Needles and Tips",
-        "Syringes and Pistons"
-      ]
-    },
-    {
-      title: "Customized Services",
-      description: "Tailored solutions for specific customer requirements",
-      products: [
-        "DT-SF Automatic Screw Fastening Robot",
-        "Large Stroke Table",
-        "DT-SR Soldering Robot",
-        "All Kinds of slides"
-      ]
-    },
-    {
-      title: "Other Products",
-      description: "Additional tools and software solutions",
-      products: [
-        "Tip Finder",
-        "SRE software - SMART ROBOT EDIT",
-        "Hand tools - SATA"
-      ]
+  const [products, setProducts] = useState([])
+  const [categories, setCategories] = useState([])
+  const [loading, setLoading] = useState(true)
+  const [error, setError] = useState(null)
+  const [activeCategory, setActiveCategory] = useState('all')
+
+  useEffect(() => {
+    fetchData()
+  }, [])
+
+  const fetchData = async () => {
+    try {
+      const [productsResponse, categoriesResponse] = await Promise.all([
+        productAPI.getProducts(),
+        categoryAPI.getCategories()
+      ])
+      setProducts(productsResponse.data.data)
+      setCategories(categoriesResponse.data.data)
+      
+    } catch (error) {
+      console.error('Error fetching data:', error)
+      setError('Failed to load products')
+    } finally {
+      setLoading(false)
     }
-  ]
+  }
+
+  const scrollToCategory = (categoryId) => {
+    if (categoryId === 'all') {
+      // Scroll to top of products section
+      const element = document.getElementById('products-section')
+      if (element) {
+        element.scrollIntoView({ behavior: 'smooth', block: 'start' })
+      }
+    } else {
+      const element = document.getElementById(`category-${categoryId}`)
+      if (element) {
+        element.scrollIntoView({ behavior: 'smooth', block: 'start' })
+      }
+    }
+  }
+
+  const handleCategoryClick = (categoryId) => {
+    setActiveCategory(categoryId)
+    scrollToCategory(categoryId)
+  }
+
+  if (loading) {
+    return (
+      <div className="min-h-screen flex items-center justify-center">
+        <div className="flex flex-col items-center space-y-4">
+          <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-primary-600"></div>
+          <p className="text-gray-600">Loading products...</p>
+        </div>
+      </div>
+    )
+  }
+
+  if (error) {
+    return (
+      <div className="min-h-screen flex items-center justify-center">
+        <div className="text-center">
+          <div className="text-6xl mb-4">⚠️</div>
+          <h1 className="text-2xl font-bold text-gray-900 mb-2">Error Loading Products</h1>
+          <p className="text-gray-600 mb-6">{error}</p>
+          <button
+            onClick={fetchData}
+            className="inline-flex items-center px-4 py-2 border border-transparent text-sm font-medium rounded-md shadow-sm text-white bg-primary-600 hover:bg-primary-700"
+          >
+            Try Again
+          </button>
+        </div>
+      </div>
+    )
+  }
 
   const applications = [
     {
@@ -107,8 +113,39 @@ const Products = () => {
         </div>
       </section>
 
-      {/* Product Categories */}
-      <section className="py-20">
+      {/* Category Tabs */}
+      <section className="py-8 bg-gray-50">
+        <div className="container-custom">
+          <div className="flex flex-wrap justify-center gap-2 mb-8">
+            <button
+              onClick={() => handleCategoryClick('all')}
+              className={`px-6 py-3 rounded-lg font-medium transition-colors ${
+                activeCategory === 'all'
+                  ? 'bg-primary-600 text-white'
+                  : 'bg-white text-gray-700 hover:bg-gray-100'
+              }`}
+            >
+              All Products
+            </button>
+            {categories.map((category) => (
+              <button
+                key={category.id}
+                onClick={() => handleCategoryClick(category.id)}
+                className={`px-6 py-3 rounded-lg font-medium transition-colors ${
+                  activeCategory === category.id
+                    ? 'bg-primary-600 text-white'
+                    : 'bg-white text-gray-700 hover:bg-gray-100'
+                }`}
+              >
+                {category.name}
+              </button>
+            ))}
+          </div>
+        </div>
+      </section>
+
+      {/* Product Grid */}
+      <section id="products-section" className="py-20">
         <div className="container-custom">
           <div className="text-center mb-16">
             <h2 className="text-3xl md:text-4xl font-bold text-gray-900 mb-4">
@@ -119,28 +156,90 @@ const Products = () => {
             </p>
           </div>
 
-          <div className="space-y-12">
-            {productCategories.map((category, index) => (
-              <div key={index} className="bg-white rounded-lg shadow-lg overflow-hidden">
-                <div className="bg-gradient-to-r from-primary-900 to-primary-700 text-white p-6">
-                  <h3 className="text-2xl font-bold mb-2">{category.title}</h3>
-                  <p className="text-primary-100">{category.description}</p>
-                </div>
-                <div className="p-6">
-                  <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
-                    {category.products.map((product, productIndex) => (
-                      <div key={productIndex} className="bg-gray-50 rounded-lg p-4 hover:bg-gray-100 transition-colors">
-                        <div className="flex items-start space-x-3">
-                          <div className="w-2 h-2 bg-primary-600 rounded-full mt-2 flex-shrink-0"></div>
-                          <span className="text-gray-700 font-medium">{product}</span>
+          {/* Show all products grouped by category */}
+          <div className="space-y-16">
+            {categories.map((category) => {
+              const categoryProducts = products.filter(product => product.category_id === category.id)
+              if (categoryProducts.length === 0) return null
+              
+              return (
+                <div key={category.id} id={`category-${category.id}`} className="scroll-mt-20">
+                  <div className="text-center mb-12">
+                    <h3 className="text-2xl md:text-3xl font-bold text-gray-900 mb-4">
+                      {category.name}
+                    </h3>
+                    {category.description && (
+                      <p className="text-lg text-gray-600 max-w-2xl mx-auto">
+                        {category.description}
+                      </p>
+                    )}
+                  </div>
+                  
+                  <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-8">
+                    {categoryProducts.map((product) => (
+                      <Link
+                        key={product.id}
+                        to={`/products/${product.model}`}
+                        className="bg-white rounded-lg shadow-lg overflow-hidden hover:shadow-xl transition-shadow duration-300 group"
+                      >
+                        {product.image_url ? (
+                          <img
+                            src={getImageUrl(product.image_url)}
+                            alt={product.name}
+                            className="w-full h-48 object-cover group-hover:scale-105 transition-transform duration-300"
+                          />
+                        ) : (
+                          <div className="w-full h-48 bg-gray-200 flex items-center justify-center">
+                            <div className="text-center">
+                              <div className="text-4xl text-gray-400 mb-2">📦</div>
+                              <p className="text-gray-500 text-sm">No image</p>
+                            </div>
+                          </div>
+                        )}
+                        
+                        <div className="p-6">
+                          <h4 className="text-xl font-bold text-gray-900 mb-2 group-hover:text-primary-600 transition-colors">
+                            {product.name}
+                          </h4>
+                          <p className="text-primary-600 font-medium mb-3">{product.model}</p>
+                          {product.short_brief && (
+                            <p className="text-gray-600 text-sm mb-4 line-clamp-2">
+                              {product.short_brief}
+                            </p>
+                          )}
+                          
+                          {product.features && product.features.length > 0 && (
+                            <div className="space-y-1">
+                              {product.features.slice(0, 3).map((feature, index) => (
+                                <div key={index} className="flex items-start space-x-2">
+                                  <div className="w-1.5 h-1.5 bg-primary-600 rounded-full mt-2 flex-shrink-0"></div>
+                                  <span className="text-gray-600 text-sm">{feature}</span>
+                                </div>
+                              ))}
+                              {product.features.length > 3 && (
+                                <p className="text-gray-500 text-xs">
+                                  +{product.features.length - 3} more features
+                                </p>
+                              )}
+                            </div>
+                          )}
+                          
                         </div>
-                      </div>
+                      </Link>
                     ))}
                   </div>
                 </div>
-              </div>
-            ))}
+              )
+            })}
           </div>
+
+          {products.length === 0 && (
+            <div className="text-center py-12">
+              <div className="text-gray-400 text-6xl mb-4">📦</div>
+              <h3 className="text-lg font-medium text-gray-900 mb-2">No products available</h3>
+              <p className="text-gray-500">Check back later for our latest products.</p>
+            </div>
+          )}
         </div>
       </section>
 

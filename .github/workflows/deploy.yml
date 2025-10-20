@@ -81,7 +81,7 @@ jobs:
   deploy-production:
     needs: test
     runs-on: ubuntu-latest
-    if: github.ref == 'refs/heads/production'
+    if: github.ref == 'refs/heads/main'
     
     steps:
     - uses: actions/checkout@v4
@@ -107,9 +107,28 @@ jobs:
           fi
           
           # Pull latest changes
-          git pull origin production
+          git pull origin main
+          
+          # Copy environment file if it doesn't exist
+          if [ ! -f ".env" ]; then
+            echo "Creating .env file from template..."
+            cp .env.production .env
+          fi
           
           # Build and start containers
           docker compose -f docker-compose.prod.yml down
           docker compose -f docker-compose.prod.yml up --build -d
+          
+          # Wait for services to be healthy
+          sleep 30
+          
+          # Test deployment
+          if curl -f -s https://www.bondnixs.co.th/health > /dev/null; then
+            echo "✅ Deployment successful - Health check passed"
+          else
+            echo "❌ Deployment failed - Health check failed"
+            exit 1
+          fi
+          
+          # Clean up old images
           docker system prune -f

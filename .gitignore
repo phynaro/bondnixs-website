@@ -14,7 +14,8 @@ frontend/build/
 .env.development
 .env.test.local
 .env.production
-
+.cursorignore
+.cursor/
 # Logs
 logs
 *.log
@@ -113,4 +114,4 @@ temp/
 
 
 #stop workflow
-.github/
+.github/workflows/deploy.yml
