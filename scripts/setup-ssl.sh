@@ -57,7 +57,7 @@ case $choice in
             
             # Stop nginx temporarily for certificate generation
             echo "🛑 Stopping nginx container..."
-            docker-compose stop nginx
+            docker compose stop nginx
             
             # Generate certificate
             echo "🔐 Generating SSL certificate..."
@@ -104,7 +104,7 @@ if [ -f "$SSL_DIR/fullchain.pem" ] && [ -f "$SSL_DIR/privkey.pem" ]; then
     openssl x509 -in "$SSL_DIR/fullchain.pem" -text -noout | grep -E "(Subject:|Not Before|Not After)"
     echo ""
     echo "🚀 You can now start your containers with:"
-    echo "   docker-compose up -d"
+    echo "   docker compose up -d"
 else
     echo "❌ SSL setup failed. Please check the certificates."
     exit 1

@@ -88,7 +88,7 @@ docker compose -f docker-compose.prod.yml up --build -d
 
 # Wait for services to be healthy
 log "Waiting for services to be healthy..."
-sleep 30
+sleep 60
 
 # Health checks
 log "Performing health checks..."
