@@ -90,6 +90,27 @@ docker compose -f docker-compose.prod.yml up --build -d
 log "Waiting for services to be healthy..."
 sleep 60
 
+# Check if database needs initialization
+log "Checking database initialization..."
+TABLE_COUNT=$(docker compose -f docker-compose.prod.yml exec -T postgres psql -U bondnixs -d bondnixs_db -t -c "SELECT COUNT(*) FROM information_schema.tables WHERE table_schema = 'public';" 2>/dev/null | tr -d ' \n' || echo "0")
+
+if [ "$TABLE_COUNT" = "0" ]; then
+    log "Database is empty, running initialization..."
+    docker compose -f docker-compose.prod.yml exec -T postgres psql -U bondnixs -d bondnixs_db < backend/db/init.sql
+    log "Database initialization completed"
+else
+    log "Database already initialized with $TABLE_COUNT tables"
+fi
+
+# Run database migrations
+log "Running database migrations..."
+if [ -f "scripts/migrate-database.sh" ]; then
+    ./scripts/migrate-database.sh
+    log "Database migrations completed"
+else
+    warning "Migration script not found, skipping migrations"
+fi
+
 # Health checks
 log "Performing health checks..."
 
