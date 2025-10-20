@@ -35,8 +35,8 @@ const getBaseURL = () => {
     }
   }
   
-  console.log('Using production API URL: https://api.bondnixs.com')
-  return 'https://api.bondnixs.com'
+  console.log('Using production API URL: https://www.bondnixs.co.th/api')
+  return 'https://www.bondnixs.co.th/api'
 }
 
 const baseURL = getBaseURL()
