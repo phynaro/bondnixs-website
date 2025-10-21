@@ -147,7 +147,7 @@ export const productAPI = {
     
     // Add JSON fields
     formData.append('features', JSON.stringify(productData.features || []))
-    formData.append('specs', JSON.stringify(productData.specs || {}))
+    formData.append('specs', JSON.stringify(productData.specs || []))
     
     // Add image if provided
     if (productData.image) {
@@ -174,7 +174,7 @@ export const productAPI = {
     
     // Add JSON fields
     formData.append('features', JSON.stringify(productData.features || []))
-    formData.append('specs', JSON.stringify(productData.specs || {}))
+    formData.append('specs', JSON.stringify(productData.specs || []))
     
     // Add image if provided
     if (productData.image) {

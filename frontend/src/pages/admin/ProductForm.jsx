@@ -141,6 +141,36 @@ const ProductForm = () => {
     }))
   }
 
+  const moveFeatureUp = (index) => {
+    if (index === 0) return // Can't move first item up
+    
+    setFormData(prev => {
+      const newFeatures = [...prev.features]
+      const temp = newFeatures[index]
+      newFeatures[index] = newFeatures[index - 1]
+      newFeatures[index - 1] = temp
+      return {
+        ...prev,
+        features: newFeatures
+      }
+    })
+  }
+
+  const moveFeatureDown = (index) => {
+    setFormData(prev => {
+      if (index === prev.features.length - 1) return prev // Can't move last item down
+      
+      const newFeatures = [...prev.features]
+      const temp = newFeatures[index]
+      newFeatures[index] = newFeatures[index + 1]
+      newFeatures[index + 1] = temp
+      return {
+        ...prev,
+        features: newFeatures
+      }
+    })
+  }
+
   const addSpec = () => {
     setFormData(prev => ({
       ...prev,
@@ -162,6 +192,36 @@ const ProductForm = () => {
       ...prev,
       specs: prev.specs.filter((_, i) => i !== index)
     }))
+  }
+
+  const moveSpecUp = (index) => {
+    if (index === 0) return // Can't move first item up
+    
+    setFormData(prev => {
+      const newSpecs = [...prev.specs]
+      const temp = newSpecs[index]
+      newSpecs[index] = newSpecs[index - 1]
+      newSpecs[index - 1] = temp
+      return {
+        ...prev,
+        specs: newSpecs
+      }
+    })
+  }
+
+  const moveSpecDown = (index) => {
+    setFormData(prev => {
+      if (index === prev.specs.length - 1) return prev // Can't move last item down
+      
+      const newSpecs = [...prev.specs]
+      const temp = newSpecs[index]
+      newSpecs[index] = newSpecs[index + 1]
+      newSpecs[index + 1] = temp
+      return {
+        ...prev,
+        specs: newSpecs
+      }
+    })
   }
 
   const validateForm = () => {
@@ -454,6 +514,37 @@ const ProductForm = () => {
           <div className="space-y-3">
             {formData.features.map((feature, index) => (
               <div key={index} className="flex items-center space-x-2">
+                {/* Reorder buttons */}
+                <div className="flex flex-col space-y-1">
+                  <button
+                    type="button"
+                    onClick={() => moveFeatureUp(index)}
+                    disabled={index === 0}
+                    className={`p-1 rounded text-xs ${
+                      index === 0 
+                        ? 'text-gray-300 cursor-not-allowed' 
+                        : 'text-gray-600 hover:text-gray-800 hover:bg-gray-100'
+                    }`}
+                    title="Move up"
+                  >
+                    ▲
+                  </button>
+                  <button
+                    type="button"
+                    onClick={() => moveFeatureDown(index)}
+                    disabled={index === formData.features.length - 1}
+                    className={`p-1 rounded text-xs ${
+                      index === formData.features.length - 1 
+                        ? 'text-gray-300 cursor-not-allowed' 
+                        : 'text-gray-600 hover:text-gray-800 hover:bg-gray-100'
+                    }`}
+                    title="Move down"
+                  >
+                    ▼
+                  </button>
+                </div>
+
+                {/* Feature input */}
                 <input
                   type="text"
                   value={feature}
@@ -461,12 +552,15 @@ const ProductForm = () => {
                   className="flex-1 px-3 py-2 border border-gray-300 rounded-md shadow-sm focus:outline-none focus:ring-primary-500 focus:border-primary-500"
                   placeholder="Enter feature"
                 />
+                
+                {/* Remove button */}
                 <button
                   type="button"
                   onClick={() => removeFeature(index)}
-                  className="px-3 py-2 text-red-600 hover:text-red-800"
+                  className="px-3 py-2 text-red-600 hover:text-red-800 hover:bg-red-50 rounded"
+                  title="Remove feature"
                 >
-                  Remove
+                  ✕
                 </button>
               </div>
             ))}
@@ -488,6 +582,37 @@ const ProductForm = () => {
           <div className="space-y-3">
             {formData.specs.map((spec, index) => (
               <div key={index} className="flex items-center space-x-2">
+                {/* Reorder buttons */}
+                <div className="flex flex-col space-y-1">
+                  <button
+                    type="button"
+                    onClick={() => moveSpecUp(index)}
+                    disabled={index === 0}
+                    className={`p-1 rounded text-xs ${
+                      index === 0 
+                        ? 'text-gray-300 cursor-not-allowed' 
+                        : 'text-gray-600 hover:text-gray-800 hover:bg-gray-100'
+                    }`}
+                    title="Move up"
+                  >
+                    ▲
+                  </button>
+                  <button
+                    type="button"
+                    onClick={() => moveSpecDown(index)}
+                    disabled={index === formData.specs.length - 1}
+                    className={`p-1 rounded text-xs ${
+                      index === formData.specs.length - 1 
+                        ? 'text-gray-300 cursor-not-allowed' 
+                        : 'text-gray-600 hover:text-gray-800 hover:bg-gray-100'
+                    }`}
+                    title="Move down"
+                  >
+                    ▼
+                  </button>
+                </div>
+
+                {/* Specification inputs */}
                 <input
                   type="text"
                   value={spec.key}
@@ -503,12 +628,15 @@ const ProductForm = () => {
                   className="flex-1 px-3 py-2 border border-gray-300 rounded-md shadow-sm focus:outline-none focus:ring-primary-500 focus:border-primary-500"
                   placeholder="Value"
                 />
+                
+                {/* Remove button */}
                 <button
                   type="button"
                   onClick={() => removeSpec(index)}
-                  className="px-3 py-2 text-red-600 hover:text-red-800"
+                  className="px-3 py-2 text-red-600 hover:text-red-800 hover:bg-red-50 rounded"
+                  title="Remove specification"
                 >
-                  Remove
+                  ✕
                 </button>
               </div>
             ))}

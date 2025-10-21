@@ -92,7 +92,7 @@ router.post('/', authenticateToken, requireAdmin, handleUpload, async (req, res)
 
     // Parse JSON fields
     let parsedFeatures = []
-    let parsedSpecs = {}
+    let parsedSpecs = []
     
     if (features) {
       try {
@@ -108,6 +108,18 @@ router.post('/', authenticateToken, requireAdmin, handleUpload, async (req, res)
     if (specs) {
       try {
         parsedSpecs = typeof specs === 'string' ? JSON.parse(specs) : specs
+        // Ensure specs is an array
+        if (!Array.isArray(parsedSpecs)) {
+          // Convert old object format to array format for backward compatibility
+          if (typeof parsedSpecs === 'object' && parsedSpecs !== null) {
+            parsedSpecs = Object.entries(parsedSpecs).map(([key, value]) => ({
+              key,
+              value
+            }))
+          } else {
+            parsedSpecs = []
+          }
+        }
       } catch (error) {
         return res.status(400).json({
           success: false,
@@ -199,7 +211,7 @@ router.put('/:id', authenticateToken, requireAdmin, handleUpload, async (req, re
 
     // Parse JSON fields
     let parsedFeatures = []
-    let parsedSpecs = {}
+    let parsedSpecs = []
     
     if (features) {
       try {
@@ -215,6 +227,18 @@ router.put('/:id', authenticateToken, requireAdmin, handleUpload, async (req, re
     if (specs) {
       try {
         parsedSpecs = typeof specs === 'string' ? JSON.parse(specs) : specs
+        // Ensure specs is an array
+        if (!Array.isArray(parsedSpecs)) {
+          // Convert old object format to array format for backward compatibility
+          if (typeof parsedSpecs === 'object' && parsedSpecs !== null) {
+            parsedSpecs = Object.entries(parsedSpecs).map(([key, value]) => ({
+              key,
+              value
+            }))
+          } else {
+            parsedSpecs = []
+          }
+        }
       } catch (error) {
         return res.status(400).json({
           success: false,
