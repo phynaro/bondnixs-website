@@ -96,7 +96,7 @@ const ProductList = () => {
             to="/admin/products/new"
             className="inline-flex items-center px-4 py-2 border border-transparent text-sm font-medium rounded-md shadow-sm text-white bg-primary-600 hover:bg-primary-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-primary-500"
           >
-            ➕ Add Product
+            Add Product
           </Link>
         </div>
       </div>
@@ -155,71 +155,148 @@ const ProductList = () => {
         </div>
       </div>
 
-      {/* Products Table */}
+      {/* Products Display */}
       <div className="bg-white shadow rounded-lg overflow-hidden">
         {filteredProducts.length > 0 ? (
-          <div className="overflow-x-auto">
-            <table className="min-w-full divide-y divide-gray-200">
-              <thead className="bg-gray-50">
-                <tr>
-                  <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-                    Product
-                  </th>
-                  <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-                    Model
-                  </th>
-                  <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-                    Category
-                  </th>
-                  <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-                    Status
-                  </th>
-                  <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-                    Documents
-                  </th>
-                  <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-                    Created
-                  </th>
-                  <th className="px-6 py-3 text-right text-xs font-medium text-gray-500 uppercase tracking-wider">
-                    Actions
-                  </th>
-                </tr>
-              </thead>
-              <tbody className="bg-white divide-y divide-gray-200">
+          <>
+            {/* Desktop Table View */}
+            <div className="hidden lg:block overflow-x-auto">
+              <table className="min-w-full divide-y divide-gray-200">
+                <thead className="bg-gray-50">
+                  <tr>
+                    <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                      Product
+                    </th>
+                    <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                      Model
+                    </th>
+                    <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                      Category
+                    </th>
+                    <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                      Status
+                    </th>
+                    <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                      Documents
+                    </th>
+                    <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                      Created
+                    </th>
+                    <th className="px-6 py-3 text-right text-xs font-medium text-gray-500 uppercase tracking-wider">
+                      Actions
+                    </th>
+                  </tr>
+                </thead>
+                <tbody className="bg-white divide-y divide-gray-200">
+                  {filteredProducts.map((product) => (
+                    <tr key={product.id} className="hover:bg-gray-50">
+                      <td className="px-6 py-4 whitespace-nowrap">
+                        <div className="flex items-center">
+                          {product.image_url ? (
+                            <img
+                              className="h-10 w-10 rounded-lg object-cover mr-4"
+                              src={getImageUrl(product.image_url)}
+                              alt={product.name}
+                            />
+                          ) : (
+                            <div className="h-10 w-10 rounded-lg bg-gray-200 flex items-center justify-center mr-4">
+                              <span className="text-gray-400">📦</span>
+                            </div>
+                          )}
+                          <div>
+                            <div className="text-sm font-medium text-gray-900">
+                              {product.name}
+                            </div>
+                            {product.short_brief && (
+                              <div className="text-sm text-gray-500">
+                                {product.short_brief}
+                              </div>
+                            )}
+                          </div>
+                        </div>
+                      </td>
+                      <td className="px-6 py-4 whitespace-nowrap">
+                        <div className="text-sm text-gray-900">{product.model}</div>
+                      </td>
+                      <td className="px-6 py-4 whitespace-nowrap">
+                        <div className="text-sm text-gray-900">{product.category_name || 'No category'}</div>
+                      </td>
+                      <td className="px-6 py-4 whitespace-nowrap">
+                        <button
+                          onClick={() => handleTogglePublish(product.id)}
+                          className={`inline-flex px-2 py-1 text-xs font-semibold rounded-full cursor-pointer transition-colors ${
+                            product.published
+                              ? 'bg-green-100 text-green-800 hover:bg-green-200'
+                              : 'bg-yellow-100 text-yellow-800 hover:bg-yellow-200'
+                          }`}
+                        >
+                          {product.published ? 'Published' : 'Draft'}
+                        </button>
+                      </td>
+                      <td className="px-6 py-4 whitespace-nowrap">
+                        <div className="flex items-center">
+                          {product.document_count > 0 ? (
+                            <span className="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium bg-blue-100 text-blue-800">
+                              {product.document_count} docs
+                            </span>
+                          ) : (
+                            <span className="text-gray-400 text-xs">No docs</span>
+                          )}
+                        </div>
+                      </td>
+                      <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500">
+                        {new Date(product.created_at).toLocaleDateString()}
+                      </td>
+                      <td className="px-6 py-4 whitespace-nowrap text-right text-sm font-medium">
+                        <div className="flex justify-end space-x-2">
+                          <Link
+                            to={`/admin/products/edit/${product.id}`}
+                            className="text-primary-600 hover:text-primary-900"
+                          >
+                            Edit
+                          </Link>
+                          <button
+                            onClick={() => handleDelete(product.id, product.name)}
+                            className="text-red-600 hover:text-red-900"
+                          >
+                            Delete
+                          </button>
+                        </div>
+                      </td>
+                    </tr>
+                  ))}
+                </tbody>
+              </table>
+            </div>
+
+            {/* Mobile Card View */}
+            <div className="lg:hidden">
+              <div className="p-4 space-y-4">
                 {filteredProducts.map((product) => (
-                  <tr key={product.id} className="hover:bg-gray-50">
-                    <td className="px-6 py-4 whitespace-nowrap">
-                      <div className="flex items-center">
+                  <div key={product.id} className="bg-gray-50 rounded-lg p-4 border border-gray-200">
+                    {/* Product Header */}
+                    <div className="flex items-start justify-between mb-3">
+                      <div className="flex items-center flex-1">
                         {product.image_url ? (
                           <img
-                            className="h-10 w-10 rounded-lg object-cover mr-4"
+                            className="h-12 w-12 rounded-lg object-cover mr-3"
                             src={getImageUrl(product.image_url)}
                             alt={product.name}
                           />
                         ) : (
-                          <div className="h-10 w-10 rounded-lg bg-gray-200 flex items-center justify-center mr-4">
-                            <span className="text-gray-400">📦</span>
+                          <div className="h-12 w-12 rounded-lg bg-gray-200 flex items-center justify-center mr-3">
+                            <span className="text-gray-400 text-lg">📦</span>
                           </div>
                         )}
-                        <div>
-                          <div className="text-sm font-medium text-gray-900">
+                        <div className="flex-1 min-w-0">
+                          <h3 className="text-sm font-medium text-gray-900 truncate">
                             {product.name}
-                          </div>
-                          {product.short_brief && (
-                            <div className="text-sm text-gray-500">
-                              {product.short_brief}
-                            </div>
-                          )}
+                          </h3>
+                          <p className="text-xs text-gray-500 truncate">
+                            {product.model}
+                          </p>
                         </div>
                       </div>
-                    </td>
-                    <td className="px-6 py-4 whitespace-nowrap">
-                      <div className="text-sm text-gray-900">{product.model}</div>
-                    </td>
-                    <td className="px-6 py-4 whitespace-nowrap">
-                      <div className="text-sm text-gray-900">{product.category_name || 'No category'}</div>
-                    </td>
-                    <td className="px-6 py-4 whitespace-nowrap">
                       <button
                         onClick={() => handleTogglePublish(product.id)}
                         className={`inline-flex px-2 py-1 text-xs font-semibold rounded-full cursor-pointer transition-colors ${
@@ -230,42 +307,50 @@ const ProductList = () => {
                       >
                         {product.published ? 'Published' : 'Draft'}
                       </button>
-                    </td>
-                    <td className="px-6 py-4 whitespace-nowrap">
+                    </div>
+
+                    {/* Product Details */}
+                    <div className="space-y-2 mb-3">
+                      {product.short_brief && (
+                        <p className="text-xs text-gray-600 line-clamp-2">
+                          {product.short_brief}
+                        </p>
+                      )}
+                      <div className="flex items-center justify-between text-xs text-gray-500">
+                        <span>Category: {product.category_name || 'No category'}</span>
+                        <span>{new Date(product.created_at).toLocaleDateString()}</span>
+                      </div>
                       <div className="flex items-center">
                         {product.document_count > 0 ? (
-                          <span className="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium bg-blue-100 text-blue-800">
-                            {product.document_count} docs
+                          <span className="inline-flex items-center px-2 py-1 rounded-full text-xs font-medium bg-blue-100 text-blue-800">
+                            {product.document_count} documents
                           </span>
                         ) : (
-                          <span className="text-gray-400 text-xs">No docs</span>
+                          <span className="text-gray-400 text-xs">No documents</span>
                         )}
                       </div>
-                    </td>
-                    <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500">
-                      {new Date(product.created_at).toLocaleDateString()}
-                    </td>
-                    <td className="px-6 py-4 whitespace-nowrap text-right text-sm font-medium">
-                      <div className="flex justify-end space-x-2">
-                        <Link
-                          to={`/admin/products/edit/${product.id}`}
-                          className="text-primary-600 hover:text-primary-900"
-                        >
-                          Edit
-                        </Link>
-                        <button
-                          onClick={() => handleDelete(product.id, product.name)}
-                          className="text-red-600 hover:text-red-900"
-                        >
-                          Delete
-                        </button>
-                      </div>
-                    </td>
-                  </tr>
+                    </div>
+
+                    {/* Actions */}
+                    <div className="flex justify-end space-x-3 pt-2 border-t border-gray-200">
+                      <Link
+                        to={`/admin/products/edit/${product.id}`}
+                        className="text-sm text-primary-600 hover:text-primary-900 font-medium"
+                      >
+                        Edit
+                      </Link>
+                      <button
+                        onClick={() => handleDelete(product.id, product.name)}
+                        className="text-sm text-red-600 hover:text-red-900 font-medium"
+                      >
+                        Delete
+                      </button>
+                    </div>
+                  </div>
                 ))}
-              </tbody>
-            </table>
-          </div>
+              </div>
+            </div>
+          </>
         ) : (
           <div className="text-center py-12">
             <div className="text-gray-400 text-6xl mb-4">📦</div>
@@ -280,7 +365,7 @@ const ProductList = () => {
               to="/admin/products/new"
               className="inline-flex items-center px-4 py-2 border border-transparent text-sm font-medium rounded-md shadow-sm text-white bg-primary-600 hover:bg-primary-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-primary-500"
             >
-              ➕ Add Product
+              Add Product
             </Link>
           </div>
         )}

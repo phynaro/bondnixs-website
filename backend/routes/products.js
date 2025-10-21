@@ -141,10 +141,19 @@ router.post('/', authenticateToken, requireAdmin, handleUpload, async (req, res)
       description: description || null,
       image_url: imageUrl,
       features: parsedFeatures,
-      specs: parsedSpecs,
+      specs: JSON.stringify(parsedSpecs), // Convert array to JSON string for JSONB
       category_id,
       published: published === 'true' || published === true
     }
+
+    // Debug logging
+    console.log('Product data being sent to database:', {
+      ...productData,
+      specs: parsedSpecs,
+      specsType: typeof parsedSpecs,
+      specsIsArray: Array.isArray(parsedSpecs),
+      specsStringified: JSON.stringify(parsedSpecs)
+    })
 
     const result = await productQueries.createProduct(productData)
     
@@ -265,10 +274,19 @@ router.put('/:id', authenticateToken, requireAdmin, handleUpload, async (req, re
       description: description || null,
       image_url: imageUrl,
       features: parsedFeatures,
-      specs: parsedSpecs,
+      specs: JSON.stringify(parsedSpecs), // Convert array to JSON string for JSONB
       category_id,
       published: published === 'true' || published === true
     }
+
+    // Debug logging
+    console.log('Product data being sent to database:', {
+      ...productData,
+      specs: parsedSpecs,
+      specsType: typeof parsedSpecs,
+      specsIsArray: Array.isArray(parsedSpecs),
+      specsStringified: JSON.stringify(parsedSpecs)
+    })
 
     const result = await productQueries.updateProduct(id, productData)
     
