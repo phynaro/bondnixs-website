@@ -173,7 +173,10 @@ const ProductDetail = () => {
           )}
 
           {/* Specifications Section */}
-          {product.specs && Object.keys(product.specs).length > 0 && (
+          {product.specs && (
+            (Array.isArray(product.specs) && product.specs.length > 0) || 
+            (!Array.isArray(product.specs) && Object.keys(product.specs).length > 0)
+          ) && (
             <div className="px-6 py-8 border-t border-gray-200">
               <h2 className="text-2xl font-bold text-gray-900 mb-6">Specifications</h2>
               <div className="overflow-hidden">
@@ -189,16 +192,31 @@ const ProductDetail = () => {
                     </tr>
                   </thead>
                   <tbody className="bg-white divide-y divide-gray-200">
-                    {Object.entries(product.specs).map(([key, value]) => (
-                      <tr key={key}>
-                        <td className="px-6 py-4 whitespace-nowrap text-sm font-medium text-gray-900">
-                          {key}
-                        </td>
-                        <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-700">
-                          {value}
-                        </td>
-                      </tr>
-                    ))}
+                    {Array.isArray(product.specs) ? (
+                      // New format: array of {key, value, order}
+                      product.specs.map((spec, index) => (
+                        <tr key={index}>
+                          <td className="px-6 py-4 whitespace-nowrap text-sm font-medium text-gray-900">
+                            {spec.key}
+                          </td>
+                          <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-700">
+                            {spec.value}
+                          </td>
+                        </tr>
+                      ))
+                    ) : (
+                      // Old format: object
+                      Object.entries(product.specs).map(([key, value]) => (
+                        <tr key={key}>
+                          <td className="px-6 py-4 whitespace-nowrap text-sm font-medium text-gray-900">
+                            {key}
+                          </td>
+                          <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-700">
+                            {value}
+                          </td>
+                        </tr>
+                      ))
+                    )}
                   </tbody>
                 </table>
               </div>

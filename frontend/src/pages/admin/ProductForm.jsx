@@ -45,11 +45,24 @@ const ProductForm = () => {
       const product = response.data.data.find(p => p.id === id)
       
       if (product) {
-        // Convert specs object to array for ordered display
-        const specsArray = product.specs ? Object.entries(product.specs).map(([key, value]) => ({
-          key,
-          value
-        })) : []
+        // Convert specs to array for ordered display
+        // Handle both old format (object) and new format (array)
+        let specsArray = []
+        if (product.specs) {
+          if (Array.isArray(product.specs)) {
+            // New format: array of {key, value, order}
+            specsArray = product.specs.map(spec => ({
+              key: spec.key || '',
+              value: spec.value || ''
+            }))
+          } else {
+            // Old format: object - convert to array (order not preserved)
+            specsArray = Object.entries(product.specs).map(([key, value]) => ({
+              key,
+              value
+            }))
+          }
+        }
         
         setFormData({
           model: product.model,
@@ -238,17 +251,18 @@ const ProductForm = () => {
 
     setLoading(true)
     try {
-      // Convert specs array back to object for API
-      const specsObject = formData.specs.reduce((acc, spec) => {
-        if (spec.key.trim()) {
-          acc[spec.key] = spec.value
-        }
-        return acc
-      }, {})
+      // Convert specs array to ordered array for API (preserves order)
+      const specsArray = formData.specs
+        .filter(spec => spec.key.trim()) // Remove empty specs
+        .map((spec, index) => ({
+          key: spec.key.trim(),
+          value: spec.value.trim(),
+          order: index // Add order for future use
+        }))
       
       const submitData = {
         ...formData,
-        specs: specsObject
+        specs: specsArray
       }
       
       if (isEdit) {
