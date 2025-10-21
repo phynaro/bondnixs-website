@@ -13,7 +13,7 @@ const ProductForm = () => {
     short_brief: '',
     description: '',
     features: [],
-    specs: {},
+    specs: [], // Changed from {} to [] for ordered specifications
     category_id: '',
     published: true,
     image: null
@@ -45,13 +45,19 @@ const ProductForm = () => {
       const product = response.data.data.find(p => p.id === id)
       
       if (product) {
+        // Convert specs object to array for ordered display
+        const specsArray = product.specs ? Object.entries(product.specs).map(([key, value]) => ({
+          key,
+          value
+        })) : []
+        
         setFormData({
           model: product.model,
           name: product.name,
           short_brief: product.short_brief || '',
           description: product.description || '',
           features: product.features || [],
-          specs: product.specs || {},
+          specs: specsArray,
           category_id: product.category_id || '',
           published: product.published,
           image: null
@@ -125,27 +131,24 @@ const ProductForm = () => {
   const addSpec = () => {
     setFormData(prev => ({
       ...prev,
-      specs: { ...prev.specs, '': '' }
+      specs: [...prev.specs, { key: '', value: '' }]
     }))
   }
 
-  const updateSpec = (oldKey, newKey, value) => {
-    setFormData(prev => {
-      const newSpecs = { ...prev.specs }
-      if (oldKey !== newKey) {
-        delete newSpecs[oldKey]
-      }
-      newSpecs[newKey] = value
-      return { ...prev, specs: newSpecs }
-    })
+  const updateSpec = (index, field, newValue) => {
+    setFormData(prev => ({
+      ...prev,
+      specs: prev.specs.map((spec, i) => 
+        i === index ? { ...spec, [field]: newValue } : spec
+      )
+    }))
   }
 
-  const removeSpec = (key) => {
-    setFormData(prev => {
-      const newSpecs = { ...prev.specs }
-      delete newSpecs[key]
-      return { ...prev, specs: newSpecs }
-    })
+  const removeSpec = (index) => {
+    setFormData(prev => ({
+      ...prev,
+      specs: prev.specs.filter((_, i) => i !== index)
+    }))
   }
 
   const validateForm = () => {
@@ -235,11 +238,24 @@ const ProductForm = () => {
 
     setLoading(true)
     try {
+      // Convert specs array back to object for API
+      const specsObject = formData.specs.reduce((acc, spec) => {
+        if (spec.key.trim()) {
+          acc[spec.key] = spec.value
+        }
+        return acc
+      }, {})
+      
+      const submitData = {
+        ...formData,
+        specs: specsObject
+      }
+      
       if (isEdit) {
-        await productAPI.updateProduct(id, formData)
+        await productAPI.updateProduct(id, submitData)
         alert('Product updated successfully!')
       } else {
-        const response = await productAPI.createProduct(formData)
+        const response = await productAPI.createProduct(submitData)
         alert('Product created successfully!')
         // Navigate to edit page for new products so documents can be uploaded
         navigate(`/admin/products/edit/${response.data.data.id}`)
@@ -456,26 +472,26 @@ const ProductForm = () => {
           <h2 className="text-lg font-medium text-gray-900 mb-4">Specifications</h2>
           
           <div className="space-y-3">
-            {Object.entries(formData.specs).map(([key, value]) => (
-              <div key={key} className="flex items-center space-x-2">
+            {formData.specs.map((spec, index) => (
+              <div key={index} className="flex items-center space-x-2">
                 <input
                   type="text"
-                  value={key}
-                  onChange={(e) => updateSpec(key, e.target.value, value)}
+                  value={spec.key}
+                  onChange={(e) => updateSpec(index, 'key', e.target.value)}
                   className="flex-1 px-3 py-2 border border-gray-300 rounded-md shadow-sm focus:outline-none focus:ring-primary-500 focus:border-primary-500"
                   placeholder="Specification name"
                 />
                 <span className="text-gray-500">:</span>
                 <input
                   type="text"
-                  value={value}
-                  onChange={(e) => updateSpec(key, key, e.target.value)}
+                  value={spec.value}
+                  onChange={(e) => updateSpec(index, 'value', e.target.value)}
                   className="flex-1 px-3 py-2 border border-gray-300 rounded-md shadow-sm focus:outline-none focus:ring-primary-500 focus:border-primary-500"
                   placeholder="Value"
                 />
                 <button
                   type="button"
-                  onClick={() => removeSpec(key)}
+                  onClick={() => removeSpec(index)}
                   className="px-3 py-2 text-red-600 hover:text-red-800"
                 >
                   Remove

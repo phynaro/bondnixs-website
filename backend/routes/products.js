@@ -54,7 +54,7 @@ router.get('/:model', async (req, res) => {
 // Get all products (including unpublished) - Admin only
 router.get('/admin/all', authenticateToken, requireAdmin, async (req, res) => {
   try {
-    const result = await documentQueries.getProductsWithDocumentCounts()
+    const result = await productQueries.getAllProductsAdmin()
     res.json({
       success: true,
       data: result.rows

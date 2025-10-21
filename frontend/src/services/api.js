@@ -67,8 +67,16 @@ api.interceptors.response.use(
   (error) => {
     if (error.response?.status === 401) {
       // Token expired or invalid, redirect to login
-      // Only redirect if not already on login page to avoid infinite loops
-      if (!window.location.pathname.includes('/admin/login')) {
+      // Only redirect if:
+      // 1. Not already on login page to avoid infinite loops
+      // 2. Not on public pages (pages that don't require authentication)
+      // 3. Not calling auth/me endpoint (which is used to check auth status)
+      const isPublicPage = !window.location.pathname.startsWith('/admin')
+      const isAuthCheck = error.config?.url?.includes('/api/auth/me')
+      
+      if (!window.location.pathname.includes('/admin/login') && 
+          !isPublicPage && 
+          !isAuthCheck) {
         window.location.href = '/admin/login'
       }
     }

@@ -152,9 +152,15 @@ const productQueries = {
     SELECT 
       p.id, p.model, p.name, p.short_brief, p.description, p.image_url, 
       p.features, p.specs, p.published, p.created_at, p.updated_at,
-      c.id as category_id, c.name as category_name, c.description as category_description
+      c.id as category_id, c.name as category_name, c.description as category_description,
+      COALESCE(doc_counts.document_count, 0) as document_count
     FROM product p
     JOIN category c ON p.category_id = c.id
+    LEFT JOIN (
+      SELECT product_id, COUNT(*) as document_count
+      FROM product_documents
+      GROUP BY product_id
+    ) doc_counts ON p.id = doc_counts.product_id
     ORDER BY c.display_order ASC, p.created_at DESC
   `),
 

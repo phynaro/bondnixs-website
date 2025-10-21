@@ -12,8 +12,12 @@ RUN npm ci
 # Copy source code
 COPY . .
 
-# Build the application
-RUN npm run build
+# Set build-time environment variables
+ARG NODE_ENV=development
+ENV NODE_ENV=$NODE_ENV
+
+# Build the application with the correct mode
+RUN npm run build -- --mode $NODE_ENV
 
 # Production stage
 FROM nginx:alpine AS production
