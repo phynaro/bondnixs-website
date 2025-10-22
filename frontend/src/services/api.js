@@ -280,4 +280,33 @@ export const getFileTypeIcon = (filename) => {
   return iconMap[ext] || '📄'
 }
 
+// Contact API functions
+export const contactAPI = {
+  // Submit contact form
+  submitContactForm: (formData) => api.post(getApiPath('/api/contact'), formData),
+  
+  // Admin contact APIs
+  getMessages: () => api.get(getApiPath('/api/contact')),
+  
+  getMessage: (id) => api.get(getApiPath(`/api/contact/${id}`)),
+  
+  deleteMessage: (id) => api.delete(getApiPath(`/api/contact/${id}`)),
+  
+  updateMessageStatus: (id, status) => api.patch(getApiPath(`/api/contact/${id}/status`), { status })
+}
+
+// Recipient API functions
+export const recipientAPI = {
+  // Admin recipient APIs
+  getRecipients: () => api.get(getApiPath('/api/recipients')),
+  
+  createRecipient: (data) => api.post(getApiPath('/api/recipients'), data),
+  
+  updateRecipient: (id, data) => api.put(getApiPath(`/api/recipients/${id}`), data),
+  
+  deleteRecipient: (id) => api.delete(getApiPath(`/api/recipients/${id}`)),
+  
+  toggleActive: (id) => api.patch(getApiPath(`/api/recipients/${id}/toggle`))
+}
+
 export default api

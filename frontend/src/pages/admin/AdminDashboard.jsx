@@ -1,13 +1,15 @@
 import { useState, useEffect } from 'react'
 import { Link } from 'react-router-dom'
-import { productAPI, categoryAPI } from '../../services/api'
+import { productAPI, categoryAPI, contactAPI } from '../../services/api'
 
 const AdminDashboard = () => {
   const [stats, setStats] = useState({
     totalProducts: 0,
     publishedProducts: 0,
     unpublishedProducts: 0,
-    totalCategories: 0
+    totalCategories: 0,
+    totalMessages: 0,
+    unreadMessages: 0
   })
   const [recentProducts, setRecentProducts] = useState([])
   const [categoryStats, setCategoryStats] = useState([])
@@ -19,23 +21,29 @@ const AdminDashboard = () => {
 
   const fetchDashboardData = async () => {
     try {
-      const [productsResponse, categoriesResponse] = await Promise.all([
+      const [productsResponse, categoriesResponse, messagesResponse] = await Promise.all([
         productAPI.getAllProductsAdmin(),
-        categoryAPI.getCategories()
+        categoryAPI.getCategories(),
+        contactAPI.getMessages()
       ])
       
       const products = productsResponse.data.data
       const categories = categoriesResponse.data.data
+      const messages = messagesResponse.data.data
 
       const totalProducts = products.length
       const publishedProducts = products.filter(p => p.published).length
       const unpublishedProducts = totalProducts - publishedProducts
+      const totalMessages = messages.length
+      const unreadMessages = messages.filter(m => m.status === 'new').length
 
       setStats({
         totalProducts,
         publishedProducts,
         unpublishedProducts,
-        totalCategories: categories.length
+        totalCategories: categories.length,
+        totalMessages,
+        unreadMessages
       })
 
       // Get 5 most recent products
@@ -74,7 +82,7 @@ const AdminDashboard = () => {
       </div>
 
       {/* Stats Cards */}
-      <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6 mb-8">
+      <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-5 gap-6 mb-8">
         <div className="bg-white overflow-hidden shadow-sm rounded-lg border border-gray-200">
           <div className="p-6">
             <div className="flex items-center">
@@ -170,6 +178,35 @@ const AdminDashboard = () => {
             </div>
           </div>
         </div>
+
+        <div className="bg-white overflow-hidden shadow-sm rounded-lg border border-gray-200">
+          <div className="p-6">
+            <div className="flex items-center">
+              <div className="flex-shrink-0">
+                <div className="w-12 h-12 bg-gray-100 rounded-lg flex items-center justify-center">
+                  <svg className="w-6 h-6 text-gray-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.5} d="M3 8l7.89 4.26a2 2 0 002.22 0L21 8M5 19h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v10a2 2 0 002 2z" />
+                  </svg>
+                </div>
+              </div>
+              <div className="ml-4">
+                <dl>
+                  <dt className="text-sm font-medium text-gray-500 truncate">
+                    Messages
+                  </dt>
+                  <dd className="text-2xl font-semibold text-gray-900">
+                    {stats.totalMessages}
+                  </dd>
+                  {stats.unreadMessages > 0 && (
+                    <dd className="text-sm text-blue-600 font-medium">
+                      {stats.unreadMessages} unread
+                    </dd>
+                  )}
+                </dl>
+              </div>
+            </div>
+          </div>
+        </div>
       </div>
 
       {/* Quick Actions */}
@@ -196,6 +233,17 @@ const AdminDashboard = () => {
               className="inline-flex items-center px-4 py-2 border border-gray-300 text-sm font-medium rounded-lg text-gray-700 bg-white hover:bg-gray-50 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-primary-500 transition-colors"
             >
               Manage Categories
+            </Link>
+            <Link
+              to="/admin/messages"
+              className="inline-flex items-center px-4 py-2 border border-gray-300 text-sm font-medium rounded-lg text-gray-700 bg-white hover:bg-gray-50 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-primary-500 transition-colors"
+            >
+              View Messages
+              {stats.unreadMessages > 0 && (
+                <span className="ml-2 inline-flex items-center px-2 py-1 rounded-full text-xs font-medium bg-blue-100 text-blue-800">
+                  {stats.unreadMessages} new
+                </span>
+              )}
             </Link>
           </div>
         </div>

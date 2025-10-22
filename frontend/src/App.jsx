@@ -18,6 +18,8 @@ import AdminDashboard from './pages/admin/AdminDashboard'
 import ProductList from './pages/admin/ProductList'
 import ProductForm from './pages/admin/ProductForm'
 import CategoryList from './pages/admin/CategoryList'
+import MessageList from './pages/admin/MessageList'
+import RecipientList from './pages/admin/RecipientList'
 
 function App() {
   return (
@@ -45,6 +47,20 @@ function App() {
             <ProtectedRoute>
               <AdminLayout>
                 <CategoryList />
+              </AdminLayout>
+            </ProtectedRoute>
+          } />
+          <Route path="/admin/messages" element={
+            <ProtectedRoute>
+              <AdminLayout>
+                <MessageList />
+              </AdminLayout>
+            </ProtectedRoute>
+          } />
+          <Route path="/admin/recipients" element={
+            <ProtectedRoute>
+              <AdminLayout>
+                <RecipientList />
               </AdminLayout>
             </ProtectedRoute>
           } />

@@ -10,7 +10,9 @@ const AdminLayout = ({ children }) => {
   const navigation = [
     { name: 'Dashboard', href: '/admin', icon: null },
     { name: 'Products', href: '/admin/products', icon: null },
-    { name: 'Categories', href: '/admin/categories', icon: null }
+    { name: 'Categories', href: '/admin/categories', icon: null },
+    { name: 'Messages', href: '/admin/messages', icon: null },
+    { name: 'Recipients', href: '/admin/recipients', icon: null }
   ]
 
   const isCurrentPath = (path) => {

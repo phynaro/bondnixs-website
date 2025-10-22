@@ -1,4 +1,5 @@
 import { useState } from 'react'
+import { contactAPI } from '../services/api'
 
 const Contact = () => {
   const [formData, setFormData] = useState({
@@ -9,6 +10,9 @@ const Contact = () => {
     subject: '',
     message: ''
   })
+  const [isSubmitting, setIsSubmitting] = useState(false)
+  const [submitStatus, setSubmitStatus] = useState(null) // 'success', 'error', null
+  const [errorMessage, setErrorMessage] = useState('')
 
   const handleChange = (e) => {
     setFormData({
@@ -17,19 +21,50 @@ const Contact = () => {
     })
   }
 
-  const handleSubmit = (e) => {
+  const handleSubmit = async (e) => {
     e.preventDefault()
-    // Handle form submission here
-    console.log('Form submitted:', formData)
-    // Reset form
-    setFormData({
-      name: '',
-      email: '',
-      company: '',
-      phone: '',
-      subject: '',
-      message: ''
-    })
+    setIsSubmitting(true)
+    setSubmitStatus(null)
+    setErrorMessage('')
+
+    try {
+      const response = await contactAPI.submitContactForm(formData)
+      
+      if (response.data.success) {
+        setSubmitStatus('success')
+        // Reset form
+        setFormData({
+          name: '',
+          email: '',
+          company: '',
+          phone: '',
+          subject: '',
+          message: ''
+        })
+      } else {
+        setSubmitStatus('error')
+      }
+    } catch (error) {
+      console.error('Error submitting contact form:', error)
+      
+      // Handle specific error types
+      if (error.response?.data?.code === 'RATE_LIMIT_EXCEEDED') {
+        setSubmitStatus('error')
+        setErrorMessage('You have reached the submission limit. Please wait about 15 minutes and try again.')
+      } else if (error.response?.data?.code === 'EMAIL_COOLDOWN_ACTIVE') {
+        setSubmitStatus('error')
+        const minutes = error.response.data.retryAfter ?? 30
+        setErrorMessage(`This email address has recently sent a message. Please retry in about ${minutes} minute${minutes === 1 ? '' : 's'}.`)
+      } else if (error.response?.status === 429 && error.response?.data?.code === 'SUSPICIOUS_ACTIVITY') {
+        setSubmitStatus('error')
+        setErrorMessage('We detected too many submissions in a short time. Please contact us directly or try again later.')
+      } else {
+        setSubmitStatus('error')
+        setErrorMessage('Sorry, there was an error sending your message. Please try again or contact us directly.')
+      }
+    } finally {
+      setIsSubmitting(false)
+    }
   }
 
   return (
@@ -55,6 +90,42 @@ const Contact = () => {
             {/* Contact Form */}
             <div>
               <h2 className="text-3xl font-bold text-gray-900 mb-6">Send us a Message</h2>
+              
+              {/* Status Messages */}
+              {submitStatus === 'success' && (
+                <div className="mb-6 p-4 bg-green-50 border border-green-200 rounded-lg">
+                  <div className="flex">
+                    <div className="flex-shrink-0">
+                      <svg className="h-5 w-5 text-green-400" viewBox="0 0 20 20" fill="currentColor">
+                        <path fillRule="evenodd" d="M10 18a8 8 0 100-16 8 8 0 000 16zm3.707-9.293a1 1 0 00-1.414-1.414L9 10.586 7.707 9.293a1 1 0 00-1.414 1.414l2 2a1 1 0 001.414 0l4-4z" clipRule="evenodd" />
+                      </svg>
+                    </div>
+                    <div className="ml-3">
+                      <p className="text-sm font-medium text-green-800">
+                        Thank you for your message! We have received your inquiry and will respond within 24 hours.
+                      </p>
+                    </div>
+                  </div>
+                </div>
+              )}
+              
+              {submitStatus === 'error' && (
+                <div className="mb-6 p-4 bg-red-50 border border-red-200 rounded-lg">
+                  <div className="flex">
+                    <div className="flex-shrink-0">
+                      <svg className="h-5 w-5 text-red-400" viewBox="0 0 20 20" fill="currentColor">
+                        <path fillRule="evenodd" d="M10 18a8 8 0 100-16 8 8 0 000 16zM8.707 7.293a1 1 0 00-1.414 1.414L8.586 10l-1.293 1.293a1 1 0 101.414 1.414L10 11.414l1.293 1.293a1 1 0 001.414-1.414L11.414 10l1.293-1.293a1 1 0 00-1.414-1.414L10 8.586 8.707 7.293z" clipRule="evenodd" />
+                      </svg>
+                    </div>
+                    <div className="ml-3">
+                      <p className="text-sm font-medium text-red-800">
+                        {errorMessage || 'Sorry, there was an error sending your message. Please try again or contact us directly.'}
+                      </p>
+                    </div>
+                  </div>
+                </div>
+              )}
+              
               <form onSubmit={handleSubmit} className="space-y-6">
                 <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
                   <div>
@@ -152,16 +223,57 @@ const Contact = () => {
                     onChange={handleChange}
                     required
                     rows={6}
+                    maxLength={5000}
                     className="w-full px-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-primary-500 focus:border-transparent"
                     placeholder="Please describe your requirements or questions..."
+                  />
+                  <div className="mt-1 text-sm text-gray-500">
+                    {formData.message.length}/5000 characters
+                  </div>
+                </div>
+
+                {/* Honeypot fields - hidden from users but visible to bots */}
+                <div style={{ display: 'none' }}>
+                  <input
+                    type="text"
+                    name="website"
+                    tabIndex="-1"
+                    autoComplete="off"
+                  />
+                  <input
+                    type="text"
+                    name="url"
+                    tabIndex="-1"
+                    autoComplete="off"
+                  />
+                  <input
+                    type="text"
+                    name="honeypot"
+                    tabIndex="-1"
+                    autoComplete="off"
                   />
                 </div>
 
                 <button
                   type="submit"
-                  className="w-full btn-primary py-4 text-lg"
+                  disabled={isSubmitting}
+                  className={`w-full py-4 text-lg font-medium rounded-lg transition-colors ${
+                    isSubmitting
+                      ? 'bg-gray-400 text-gray-200 cursor-not-allowed'
+                      : 'btn-primary hover:bg-primary-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-primary-500'
+                  }`}
                 >
-                  Send Message
+                  {isSubmitting ? (
+                    <div className="flex items-center justify-center">
+                      <svg className="animate-spin -ml-1 mr-3 h-5 w-5 text-white" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24">
+                        <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4"></circle>
+                        <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path>
+                      </svg>
+                      Sending...
+                    </div>
+                  ) : (
+                    'Send Message'
+                  )}
                 </button>
               </form>
             </div>
