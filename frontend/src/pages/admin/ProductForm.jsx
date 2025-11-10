@@ -2,6 +2,16 @@ import { useState, useEffect, useCallback } from 'react'
 import { useNavigate, useParams } from 'react-router-dom'
 import { productAPI, categoryAPI, documentAPI, getImageUrl, getDocumentUrl, formatFileSize, getFileTypeIcon } from '../../services/api'
 
+// Helper function to detect if specs are in tabular format
+function isTabularSpecs(specs) {
+  if (!specs) return false
+  if (Array.isArray(specs)) return false // key-value format
+  if (typeof specs === 'object' && specs !== null && specs.format === 'tabular' && specs.columns && specs.rows) {
+    return true
+  }
+  return false
+}
+
 const ProductForm = () => {
   const navigate = useNavigate()
   const { id } = useParams()
@@ -17,6 +27,11 @@ const ProductForm = () => {
     category_id: '',
     published: true,
     image: null
+  })
+  const [specsFormat, setSpecsFormat] = useState('keyvalue') // 'keyvalue' or 'tabular'
+  const [tabularSpecs, setTabularSpecs] = useState({
+    columns: [],
+    rows: []
   })
   const [existingImage, setExistingImage] = useState(null)
   const [categories, setCategories] = useState([])
@@ -45,36 +60,56 @@ const ProductForm = () => {
       const product = response.data.data.find(p => p.id === id)
       
       if (product) {
-        // Convert specs to array for ordered display
-        // Handle both old format (object) and new format (array)
-        let specsArray = []
-        if (product.specs) {
-          if (Array.isArray(product.specs)) {
-            // New format: array of {key, value, order}
-            specsArray = product.specs.map(spec => ({
-              key: spec.key || '',
-              value: spec.value || ''
-            }))
-          } else {
-            // Old format: object - convert to array (order not preserved)
-            specsArray = Object.entries(product.specs).map(([key, value]) => ({
-              key,
-              value
-            }))
+        // Detect format and load accordingly
+        if (isTabularSpecs(product.specs)) {
+          // Tabular format
+          setSpecsFormat('tabular')
+          setTabularSpecs({
+            columns: product.specs.columns || [],
+            rows: product.specs.rows || []
+          })
+          setFormData({
+            model: product.model,
+            name: product.name,
+            short_brief: product.short_brief || '',
+            description: product.description || '',
+            features: product.features || [],
+            specs: [],
+            category_id: product.category_id || '',
+            published: product.published,
+            image: null
+          })
+        } else {
+          // Key-value format
+          setSpecsFormat('keyvalue')
+          let specsArray = []
+          if (product.specs) {
+            if (Array.isArray(product.specs)) {
+              // New format: array of {key, value, order}
+              specsArray = product.specs.map(spec => ({
+                key: spec.key || '',
+                value: spec.value || ''
+              }))
+            } else {
+              // Old format: object - convert to array (order not preserved)
+              specsArray = Object.entries(product.specs).map(([key, value]) => ({
+                key,
+                value
+              }))
+            }
           }
+          setFormData({
+            model: product.model,
+            name: product.name,
+            short_brief: product.short_brief || '',
+            description: product.description || '',
+            features: product.features || [],
+            specs: specsArray,
+            category_id: product.category_id || '',
+            published: product.published,
+            image: null
+          })
         }
-        
-        setFormData({
-          model: product.model,
-          name: product.name,
-          short_brief: product.short_brief || '',
-          description: product.description || '',
-          features: product.features || [],
-          specs: specsArray,
-          category_id: product.category_id || '',
-          published: product.published,
-          image: null
-        })
         setExistingImage(product.image_url)
       }
     } catch (error) {
@@ -224,6 +259,98 @@ const ProductForm = () => {
     })
   }
 
+  // Tabular specs management functions
+  const addTabularColumn = () => {
+    setTabularSpecs(prev => ({
+      ...prev,
+      columns: [...prev.columns, { name: '', type: 'text' }]
+      // Don't add empty key to rows - will be added when column name is set
+    }))
+  }
+
+  const updateTabularColumn = (index, field, value) => {
+    setTabularSpecs(prev => {
+      const oldColumnName = prev.columns[index]?.name
+      const newColumns = prev.columns.map((col, i) => 
+        i === index ? { ...col, [field]: value } : col
+      )
+      
+      // Update row data if column name changed
+      let newRows = prev.rows
+      if (field === 'name') {
+        if (oldColumnName && oldColumnName !== value) {
+          // Column name changed - update existing rows
+          newRows = prev.rows.map(row => {
+            const newRow = { ...row }
+            if (oldColumnName in newRow) {
+              newRow[value] = newRow[oldColumnName]
+              delete newRow[oldColumnName]
+            }
+            return newRow
+          })
+        } else if (!oldColumnName && value) {
+          // Column name was empty, now has a value - add to existing rows
+          newRows = prev.rows.map(row => ({
+            ...row,
+            [value]: row[value] || ''
+          }))
+        }
+      }
+      
+      return {
+        columns: newColumns,
+        rows: newRows
+      }
+    })
+  }
+
+  const removeTabularColumn = (index) => {
+    setTabularSpecs(prev => {
+      const columnName = prev.columns[index]?.name
+      const newColumns = prev.columns.filter((_, i) => i !== index)
+      const newRows = prev.rows.map(row => {
+        const newRow = { ...row }
+        if (columnName) {
+          delete newRow[columnName]
+        }
+        return newRow
+      })
+      return {
+        columns: newColumns,
+        rows: newRows
+      }
+    })
+  }
+
+  const addTabularRow = () => {
+    setTabularSpecs(prev => {
+      const newRow = {}
+      prev.columns.forEach(col => {
+        newRow[col.name] = ''
+      })
+      return {
+        ...prev,
+        rows: [...prev.rows, newRow]
+      }
+    })
+  }
+
+  const updateTabularCell = (rowIndex, columnName, value) => {
+    setTabularSpecs(prev => ({
+      ...prev,
+      rows: prev.rows.map((row, i) => 
+        i === rowIndex ? { ...row, [columnName]: value } : row
+      )
+    }))
+  }
+
+  const removeTabularRow = (index) => {
+    setTabularSpecs(prev => ({
+      ...prev,
+      rows: prev.rows.filter((_, i) => i !== index)
+    }))
+  }
+
   const validateForm = () => {
     const newErrors = {}
     
@@ -311,18 +438,40 @@ const ProductForm = () => {
 
     setLoading(true)
     try {
-      // Convert specs array to ordered array for API (preserves order)
-      const specsArray = formData.specs
-        .filter(spec => spec.key.trim()) // Remove empty specs
-        .map((spec, index) => ({
-          key: spec.key.trim(),
-          value: spec.value.trim(),
-          order: index // Add order for future use
-        }))
+      // Format specs based on format type
+      let formattedSpecs = null
+      
+      if (specsFormat === 'tabular') {
+        // Format tabular specs
+        const validColumns = tabularSpecs.columns.filter(col => col.name.trim())
+        formattedSpecs = {
+          format: 'tabular',
+          columns: validColumns.map(col => ({
+            name: col.name.trim(),
+            type: col.type || 'text'
+          })),
+          rows: tabularSpecs.rows.map(row => {
+            const newRow = {}
+            validColumns.forEach(col => {
+              newRow[col.name.trim()] = row[col.name.trim()] || ''
+            })
+            return newRow
+          })
+        }
+      } else {
+        // Format key-value specs
+        formattedSpecs = formData.specs
+          .filter(spec => spec.key.trim()) // Remove empty specs
+          .map((spec, index) => ({
+            key: spec.key.trim(),
+            value: spec.value.trim(),
+            order: index // Add order for future use
+          }))
+      }
       
       const submitData = {
         ...formData,
-        specs: specsArray
+        specs: formattedSpecs
       }
       
       if (isEdit) {
@@ -577,78 +726,198 @@ const ProductForm = () => {
 
         {/* Specifications */}
         <div className="bg-white shadow rounded-lg p-6">
-          <h2 className="text-lg font-medium text-gray-900 mb-4">Specifications</h2>
+          <div className="flex items-center justify-between mb-4">
+            <h2 className="text-lg font-medium text-gray-900">Specifications</h2>
+            <div className="flex items-center space-x-4">
+              <label className="text-sm text-gray-700">Format:</label>
+              <select
+                value={specsFormat}
+                onChange={(e) => {
+                  setSpecsFormat(e.target.value)
+                  if (e.target.value === 'tabular' && tabularSpecs.columns.length === 0) {
+                    setTabularSpecs({ columns: [{ name: '', type: 'text' }], rows: [] })
+                  }
+                }}
+                className="px-3 py-2 border border-gray-300 rounded-md shadow-sm focus:outline-none focus:ring-primary-500 focus:border-primary-500"
+              >
+                <option value="keyvalue">Key-Value</option>
+                <option value="tabular">Tabular</option>
+              </select>
+            </div>
+          </div>
           
-          <div className="space-y-3">
-            {formData.specs.map((spec, index) => (
-              <div key={index} className="flex items-center space-x-2">
-                {/* Reorder buttons */}
-                <div className="flex flex-col space-y-1">
+          {specsFormat === 'keyvalue' ? (
+            // Key-Value Format Editor
+            <div className="space-y-3">
+              {formData.specs.map((spec, index) => (
+                <div key={index} className="flex items-center space-x-2">
+                  {/* Reorder buttons */}
+                  <div className="flex flex-col space-y-1">
+                    <button
+                      type="button"
+                      onClick={() => moveSpecUp(index)}
+                      disabled={index === 0}
+                      className={`p-1 rounded text-xs ${
+                        index === 0 
+                          ? 'text-gray-300 cursor-not-allowed' 
+                          : 'text-gray-600 hover:text-gray-800 hover:bg-gray-100'
+                      }`}
+                      title="Move up"
+                    >
+                      ▲
+                    </button>
+                    <button
+                      type="button"
+                      onClick={() => moveSpecDown(index)}
+                      disabled={index === formData.specs.length - 1}
+                      className={`p-1 rounded text-xs ${
+                        index === formData.specs.length - 1 
+                          ? 'text-gray-300 cursor-not-allowed' 
+                          : 'text-gray-600 hover:text-gray-800 hover:bg-gray-100'
+                      }`}
+                      title="Move down"
+                    >
+                      ▼
+                    </button>
+                  </div>
+
+                  {/* Specification inputs */}
+                  <input
+                    type="text"
+                    value={spec.key}
+                    onChange={(e) => updateSpec(index, 'key', e.target.value)}
+                    className="flex-1 px-3 py-2 border border-gray-300 rounded-md shadow-sm focus:outline-none focus:ring-primary-500 focus:border-primary-500"
+                    placeholder="Specification name"
+                  />
+                  <span className="text-gray-500">:</span>
+                  <input
+                    type="text"
+                    value={spec.value}
+                    onChange={(e) => updateSpec(index, 'value', e.target.value)}
+                    className="flex-1 px-3 py-2 border border-gray-300 rounded-md shadow-sm focus:outline-none focus:ring-primary-500 focus:border-primary-500"
+                    placeholder="Value"
+                  />
+                  
+                  {/* Remove button */}
                   <button
                     type="button"
-                    onClick={() => moveSpecUp(index)}
-                    disabled={index === 0}
-                    className={`p-1 rounded text-xs ${
-                      index === 0 
-                        ? 'text-gray-300 cursor-not-allowed' 
-                        : 'text-gray-600 hover:text-gray-800 hover:bg-gray-100'
-                    }`}
-                    title="Move up"
+                    onClick={() => removeSpec(index)}
+                    className="px-3 py-2 text-red-600 hover:text-red-800 hover:bg-red-50 rounded"
+                    title="Remove specification"
                   >
-                    ▲
-                  </button>
-                  <button
-                    type="button"
-                    onClick={() => moveSpecDown(index)}
-                    disabled={index === formData.specs.length - 1}
-                    className={`p-1 rounded text-xs ${
-                      index === formData.specs.length - 1 
-                        ? 'text-gray-300 cursor-not-allowed' 
-                        : 'text-gray-600 hover:text-gray-800 hover:bg-gray-100'
-                    }`}
-                    title="Move down"
-                  >
-                    ▼
+                    ✕
                   </button>
                 </div>
-
-                {/* Specification inputs */}
-                <input
-                  type="text"
-                  value={spec.key}
-                  onChange={(e) => updateSpec(index, 'key', e.target.value)}
-                  className="flex-1 px-3 py-2 border border-gray-300 rounded-md shadow-sm focus:outline-none focus:ring-primary-500 focus:border-primary-500"
-                  placeholder="Specification name"
-                />
-                <span className="text-gray-500">:</span>
-                <input
-                  type="text"
-                  value={spec.value}
-                  onChange={(e) => updateSpec(index, 'value', e.target.value)}
-                  className="flex-1 px-3 py-2 border border-gray-300 rounded-md shadow-sm focus:outline-none focus:ring-primary-500 focus:border-primary-500"
-                  placeholder="Value"
-                />
-                
-                {/* Remove button */}
-                <button
-                  type="button"
-                  onClick={() => removeSpec(index)}
-                  className="px-3 py-2 text-red-600 hover:text-red-800 hover:bg-red-50 rounded"
-                  title="Remove specification"
-                >
-                  ✕
-                </button>
+              ))}
+              
+              <button
+                type="button"
+                onClick={addSpec}
+                className="inline-flex items-center px-3 py-2 border border-gray-300 text-sm font-medium rounded-md text-gray-700 bg-white hover:bg-gray-50"
+              >
+                ➕ Add Specification
+              </button>
+            </div>
+          ) : (
+            // Tabular Format Editor
+            <div className="space-y-4">
+              {/* Column Definitions */}
+              <div>
+                <h3 className="text-md font-medium text-gray-700 mb-3">Columns</h3>
+                <div className="space-y-2">
+                  {tabularSpecs.columns.map((column, index) => (
+                    <div key={index} className="flex items-center space-x-2">
+                      <input
+                        type="text"
+                        value={column.name}
+                        onChange={(e) => updateTabularColumn(index, 'name', e.target.value)}
+                        className="flex-1 px-3 py-2 border border-gray-300 rounded-md shadow-sm focus:outline-none focus:ring-primary-500 focus:border-primary-500"
+                        placeholder="Column name"
+                      />
+                      <select
+                        value={column.type || 'text'}
+                        onChange={(e) => updateTabularColumn(index, 'type', e.target.value)}
+                        className="px-3 py-2 border border-gray-300 rounded-md shadow-sm focus:outline-none focus:ring-primary-500 focus:border-primary-500"
+                      >
+                        <option value="text">Text</option>
+                        <option value="integer">Integer</option>
+                        <option value="decimal">Decimal</option>
+                      </select>
+                      <button
+                        type="button"
+                        onClick={() => removeTabularColumn(index)}
+                        className="px-3 py-2 text-red-600 hover:text-red-800 hover:bg-red-50 rounded"
+                        title="Remove column"
+                      >
+                        ✕
+                      </button>
+                    </div>
+                  ))}
+                  <button
+                    type="button"
+                    onClick={addTabularColumn}
+                    className="inline-flex items-center px-3 py-2 border border-gray-300 text-sm font-medium rounded-md text-gray-700 bg-white hover:bg-gray-50"
+                  >
+                    ➕ Add Column
+                  </button>
+                </div>
               </div>
-            ))}
-            
-            <button
-              type="button"
-              onClick={addSpec}
-              className="inline-flex items-center px-3 py-2 border border-gray-300 text-sm font-medium rounded-md text-gray-700 bg-white hover:bg-gray-50"
-            >
-              ➕ Add Specification
-            </button>
-          </div>
+
+              {/* Rows Editor */}
+              {tabularSpecs.columns.length > 0 && (
+                <div>
+                  <h3 className="text-md font-medium text-gray-700 mb-3">Rows</h3>
+                  <div className="overflow-x-auto">
+                    <table className="min-w-full divide-y divide-gray-200 border border-gray-300">
+                      <thead className="bg-gray-50">
+                        <tr>
+                          {tabularSpecs.columns.map((column, colIndex) => (
+                            <th key={colIndex} className="px-4 py-2 text-left text-xs font-medium text-gray-500 uppercase">
+                              {column.name || `Column ${colIndex + 1}`}
+                            </th>
+                          ))}
+                          <th className="px-4 py-2 text-left text-xs font-medium text-gray-500 uppercase">Actions</th>
+                        </tr>
+                      </thead>
+                      <tbody className="bg-white divide-y divide-gray-200">
+                        {tabularSpecs.rows.map((row, rowIndex) => (
+                          <tr key={rowIndex}>
+                            {tabularSpecs.columns.map((column, colIndex) => (
+                              <td key={colIndex} className="px-4 py-2">
+                                <input
+                                  type="text"
+                                  value={row[column.name] || ''}
+                                  onChange={(e) => updateTabularCell(rowIndex, column.name, e.target.value)}
+                                  className="w-full px-2 py-1 border border-gray-300 rounded-md shadow-sm focus:outline-none focus:ring-primary-500 focus:border-primary-500"
+                                />
+                              </td>
+                            ))}
+                            <td className="px-4 py-2">
+                              <button
+                                type="button"
+                                onClick={() => removeTabularRow(rowIndex)}
+                                className="text-red-600 hover:text-red-800 hover:bg-red-50 rounded px-2 py-1"
+                                title="Remove row"
+                              >
+                                ✕
+                              </button>
+                            </td>
+                          </tr>
+                        ))}
+                      </tbody>
+                    </table>
+                  </div>
+                  <button
+                    type="button"
+                    onClick={addTabularRow}
+                    className="mt-3 inline-flex items-center px-3 py-2 border border-gray-300 text-sm font-medium rounded-md text-gray-700 bg-white hover:bg-gray-50"
+                  >
+                    ➕ Add Row
+                  </button>
+                </div>
+              )}
+            </div>
+          )}
         </div>
 
         {/* Documents Section - Only show for existing products */}

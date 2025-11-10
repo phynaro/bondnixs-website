@@ -3,6 +3,16 @@ import { useParams, Link } from 'react-router-dom'
 import { productAPI, documentAPI, getImageUrl, getDocumentUrl, formatFileSize, getFileTypeIcon } from '../services/api'
 import DownloadFormModal from '../components/DownloadFormModal'
 
+// Helper function to detect if specs are in tabular format
+function isTabularSpecs(specs) {
+  if (!specs) return false
+  if (Array.isArray(specs)) return false // key-value format
+  if (typeof specs === 'object' && specs !== null && specs.format === 'tabular' && specs.columns && specs.rows) {
+    return true
+  }
+  return false
+}
+
 const ProductDetail = () => {
   const { model } = useParams()
   const [product, setProduct] = useState(null)
@@ -187,51 +197,81 @@ const ProductDetail = () => {
 
           {/* Specifications Section */}
           {product.specs && (
-            (Array.isArray(product.specs) && product.specs.length > 0) || 
-            (!Array.isArray(product.specs) && Object.keys(product.specs).length > 0)
+            (isTabularSpecs(product.specs) && product.specs.rows && product.specs.rows.length > 0) ||
+            (!isTabularSpecs(product.specs) && (
+              (Array.isArray(product.specs) && product.specs.length > 0) || 
+              (!Array.isArray(product.specs) && Object.keys(product.specs).length > 0)
+            ))
           ) && (
             <div className="px-6 py-8 border-t border-gray-200">
               <h2 className="text-2xl font-bold text-gray-900 mb-6">Specifications</h2>
-              <div className="overflow-hidden">
-                <table className="min-w-full divide-y divide-gray-200">
-                  <thead className="bg-gray-50">
-                    <tr>
-                      <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-                        Specification
-                      </th>
-                      <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-                        Value
-                      </th>
-                    </tr>
-                  </thead>
-                  <tbody className="bg-white divide-y divide-gray-200">
-                    {Array.isArray(product.specs) ? (
-                      // New format: array of {key, value, order}
-                      product.specs.map((spec, index) => (
-                        <tr key={index}>
-                          <td className="px-6 py-4 whitespace-nowrap text-sm font-medium text-gray-900">
-                            {spec.key}
-                          </td>
-                          <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-700">
-                            {spec.value}
-                          </td>
+              <div className="overflow-x-auto">
+                {isTabularSpecs(product.specs) ? (
+                  // Tabular format: multi-column table
+                  <table className="min-w-full divide-y divide-gray-200">
+                    <thead className="bg-gray-50">
+                      <tr>
+                        {product.specs.columns.map((column, index) => (
+                          <th key={index} className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                            {column.name}
+                          </th>
+                        ))}
+                      </tr>
+                    </thead>
+                    <tbody className="bg-white divide-y divide-gray-200">
+                      {product.specs.rows.map((row, rowIndex) => (
+                        <tr key={rowIndex}>
+                          {product.specs.columns.map((column, colIndex) => (
+                            <td key={colIndex} className="px-6 py-4 whitespace-nowrap text-sm text-gray-700">
+                              {row[column.name] !== undefined && row[column.name] !== null ? String(row[column.name]) : '-'}
+                            </td>
+                          ))}
                         </tr>
-                      ))
-                    ) : (
-                      // Old format: object
-                      Object.entries(product.specs).map(([key, value]) => (
-                        <tr key={key}>
-                          <td className="px-6 py-4 whitespace-nowrap text-sm font-medium text-gray-900">
-                            {key}
-                          </td>
-                          <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-700">
-                            {value}
-                          </td>
-                        </tr>
-                      ))
-                    )}
-                  </tbody>
-                </table>
+                      ))}
+                    </tbody>
+                  </table>
+                ) : (
+                  // Key-value format: 2-column table
+                  <table className="min-w-full divide-y divide-gray-200">
+                    <thead className="bg-gray-50">
+                      <tr>
+                        <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                          Specification
+                        </th>
+                        <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                          Value
+                        </th>
+                      </tr>
+                    </thead>
+                    <tbody className="bg-white divide-y divide-gray-200">
+                      {Array.isArray(product.specs) ? (
+                        // New format: array of {key, value, order}
+                        product.specs.map((spec, index) => (
+                          <tr key={index}>
+                            <td className="px-6 py-4 whitespace-nowrap text-sm font-medium text-gray-900">
+                              {spec.key}
+                            </td>
+                            <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-700">
+                              {spec.value}
+                            </td>
+                          </tr>
+                        ))
+                      ) : (
+                        // Old format: object
+                        Object.entries(product.specs).map(([key, value]) => (
+                          <tr key={key}>
+                            <td className="px-6 py-4 whitespace-nowrap text-sm font-medium text-gray-900">
+                              {key}
+                            </td>
+                            <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-700">
+                              {value}
+                            </td>
+                          </tr>
+                        ))
+                      )}
+                    </tbody>
+                  </table>
+                )}
               </div>
             </div>
           )}

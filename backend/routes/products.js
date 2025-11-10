@@ -13,6 +13,47 @@ const {
   contentValidation 
 } = require('../middleware/rateLimiting')
 
+// Helper function to detect if specs are in tabular format
+function isTabularSpecs(specs) {
+  if (!specs) return false
+  if (Array.isArray(specs)) return false // key-value format
+  if (typeof specs === 'object' && specs !== null && specs.format === 'tabular' && specs.columns && specs.rows) {
+    return true
+  }
+  return false
+}
+
+// Validate tabular specs structure
+function validateTabularSpecs(specs) {
+  if (!specs || typeof specs !== 'object') {
+    return { valid: false, error: 'Tabular specs must be an object' }
+  }
+  
+  if (specs.format !== 'tabular') {
+    return { valid: false, error: 'Tabular specs must have format: "tabular"' }
+  }
+  
+  if (!Array.isArray(specs.columns) || specs.columns.length === 0) {
+    return { valid: false, error: 'Tabular specs must have at least one column' }
+  }
+  
+  if (!Array.isArray(specs.rows)) {
+    return { valid: false, error: 'Tabular specs must have a rows array' }
+  }
+  
+  // Check for unique column names
+  const columnNames = specs.columns.map(col => col.name)
+  const uniqueNames = new Set(columnNames)
+  if (uniqueNames.size !== columnNames.length) {
+    return { valid: false, error: 'Column names must be unique' }
+  }
+  
+  // Validate rows match column structure (optional - can be lenient)
+  // We'll just check that rows are objects, not validate every field
+  
+  return { valid: true }
+}
+
 // Public routes
 
 // Get all published products
@@ -101,7 +142,7 @@ router.post('/', authenticateToken, requireAdmin, handleUpload, async (req, res)
 
     // Parse JSON fields
     let parsedFeatures = []
-    let parsedSpecs = []
+    let parsedSpecs = null
     
     if (features) {
       try {
@@ -117,16 +158,30 @@ router.post('/', authenticateToken, requireAdmin, handleUpload, async (req, res)
     if (specs) {
       try {
         parsedSpecs = typeof specs === 'string' ? JSON.parse(specs) : specs
-        // Ensure specs is an array
-        if (!Array.isArray(parsedSpecs)) {
-          // Convert old object format to array format for backward compatibility
-          if (typeof parsedSpecs === 'object' && parsedSpecs !== null) {
-            parsedSpecs = Object.entries(parsedSpecs).map(([key, value]) => ({
-              key,
-              value
-            }))
-          } else {
-            parsedSpecs = []
+        
+        // Check if it's tabular format
+        if (isTabularSpecs(parsedSpecs)) {
+          // Validate tabular specs
+          const validation = validateTabularSpecs(parsedSpecs)
+          if (!validation.valid) {
+            return res.status(400).json({
+              success: false,
+              message: `Invalid tabular specs format: ${validation.error}`
+            })
+          }
+          // Keep as-is for tabular format
+        } else {
+          // Handle key-value format (existing logic)
+          if (!Array.isArray(parsedSpecs)) {
+            // Convert old object format to array format for backward compatibility
+            if (typeof parsedSpecs === 'object' && parsedSpecs !== null) {
+              parsedSpecs = Object.entries(parsedSpecs).map(([key, value]) => ({
+                key,
+                value
+              }))
+            } else {
+              parsedSpecs = []
+            }
           }
         }
       } catch (error) {
@@ -150,7 +205,7 @@ router.post('/', authenticateToken, requireAdmin, handleUpload, async (req, res)
       description: description || null,
       image_url: imageUrl,
       features: parsedFeatures,
-      specs: JSON.stringify(parsedSpecs), // Convert array to JSON string for JSONB
+      specs: parsedSpecs ? JSON.stringify(parsedSpecs) : null, // Convert to JSON string for JSONB
       category_id,
       published: published === 'true' || published === true
     }
@@ -229,7 +284,7 @@ router.put('/:id', authenticateToken, requireAdmin, handleUpload, async (req, re
 
     // Parse JSON fields
     let parsedFeatures = []
-    let parsedSpecs = []
+    let parsedSpecs = null
     
     if (features) {
       try {
@@ -245,16 +300,30 @@ router.put('/:id', authenticateToken, requireAdmin, handleUpload, async (req, re
     if (specs) {
       try {
         parsedSpecs = typeof specs === 'string' ? JSON.parse(specs) : specs
-        // Ensure specs is an array
-        if (!Array.isArray(parsedSpecs)) {
-          // Convert old object format to array format for backward compatibility
-          if (typeof parsedSpecs === 'object' && parsedSpecs !== null) {
-            parsedSpecs = Object.entries(parsedSpecs).map(([key, value]) => ({
-              key,
-              value
-            }))
-          } else {
-            parsedSpecs = []
+        
+        // Check if it's tabular format
+        if (isTabularSpecs(parsedSpecs)) {
+          // Validate tabular specs
+          const validation = validateTabularSpecs(parsedSpecs)
+          if (!validation.valid) {
+            return res.status(400).json({
+              success: false,
+              message: `Invalid tabular specs format: ${validation.error}`
+            })
+          }
+          // Keep as-is for tabular format
+        } else {
+          // Handle key-value format (existing logic)
+          if (!Array.isArray(parsedSpecs)) {
+            // Convert old object format to array format for backward compatibility
+            if (typeof parsedSpecs === 'object' && parsedSpecs !== null) {
+              parsedSpecs = Object.entries(parsedSpecs).map(([key, value]) => ({
+                key,
+                value
+              }))
+            } else {
+              parsedSpecs = []
+            }
           }
         }
       } catch (error) {
@@ -283,7 +352,7 @@ router.put('/:id', authenticateToken, requireAdmin, handleUpload, async (req, re
       description: description || null,
       image_url: imageUrl,
       features: parsedFeatures,
-      specs: JSON.stringify(parsedSpecs), // Convert array to JSON string for JSONB
+      specs: parsedSpecs ? JSON.stringify(parsedSpecs) : null, // Convert to JSON string for JSONB
       category_id,
       published: published === 'true' || published === true
     }
