@@ -20,6 +20,7 @@ import ProductForm from './pages/admin/ProductForm'
 import CategoryList from './pages/admin/CategoryList'
 import MessageList from './pages/admin/MessageList'
 import RecipientList from './pages/admin/RecipientList'
+import FileStorage from './pages/admin/FileStorage'
 
 function App() {
   return (
@@ -61,6 +62,13 @@ function App() {
             <ProtectedRoute>
               <AdminLayout>
                 <RecipientList />
+              </AdminLayout>
+            </ProtectedRoute>
+          } />
+          <Route path="/admin/files" element={
+            <ProtectedRoute>
+              <AdminLayout>
+                <FileStorage />
               </AdminLayout>
             </ProtectedRoute>
           } />

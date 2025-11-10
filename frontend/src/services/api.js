@@ -309,4 +309,41 @@ export const recipientAPI = {
   toggleActive: (id) => api.patch(getApiPath(`/api/recipients/${id}/toggle`))
 }
 
+// File Storage API functions
+export const fileStorageAPI = {
+  // Get all files
+  getFiles: () => api.get(getApiPath('/api/files')),
+  
+  // Get file by ID
+  getFile: (id) => api.get(getApiPath(`/api/files/${id}`)),
+  
+  // Upload file
+  uploadFile: (file, description = '') => {
+    const formData = new FormData()
+    formData.append('file', file)
+    if (description) {
+      formData.append('description', description)
+    }
+    
+    return api.post(getApiPath('/api/files'), formData, {
+      headers: {
+        'Content-Type': 'multipart/form-data'
+      }
+    })
+  },
+  
+  // Update file metadata
+  updateFile: (id, description) => 
+    api.put(getApiPath(`/api/files/${id}`), { description }),
+  
+  // Delete file
+  deleteFile: (id) => api.delete(getApiPath(`/api/files/${id}`)),
+  
+  // Get file link
+  getFileLink: (id) => api.get(getApiPath(`/api/files/${id}/link`)),
+  
+  // Get file activities
+  getFileActivities: (id) => api.get(getApiPath(`/api/files/${id}/activities`))
+}
+
 export default api

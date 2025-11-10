@@ -298,10 +298,83 @@ const documentQueries = {
   `)
 }
 
+// File storage query functions
+const fileStorageQueries = {
+  // Get all files
+  getAllFiles: () => query(`
+    SELECT id, filename, original_name, file_url, file_size, mime_type, description, 
+           uploaded_by, uploaded_by_name, uploaded_at, updated_at
+    FROM file_storage 
+    ORDER BY uploaded_at DESC
+  `),
+
+  // Get file by ID
+  getFileById: (id) => query(`
+    SELECT * FROM file_storage WHERE id = $1
+  `, [id]),
+
+  // Create new file record
+  createFile: (fileData) => query(`
+    INSERT INTO file_storage (filename, original_name, file_url, file_size, mime_type, description, uploaded_by, uploaded_by_name)
+    VALUES ($1, $2, $3, $4, $5, $6, $7, $8)
+    RETURNING *
+  `, [
+    fileData.filename,
+    fileData.original_name,
+    fileData.file_url,
+    fileData.file_size,
+    fileData.mime_type,
+    fileData.description || null,
+    fileData.uploaded_by,
+    fileData.uploaded_by_name || null
+  ]),
+
+  // Update file metadata
+  updateFile: (id, fileData) => query(`
+    UPDATE file_storage 
+    SET description = $2, updated_at = now()
+    WHERE id = $1
+    RETURNING *
+  `, [
+    id,
+    fileData.description || null
+  ]),
+
+  // Delete file
+  deleteFile: (id) => query(`
+    DELETE FROM file_storage WHERE id = $1
+  `, [id]),
+
+  // Get file activities
+  getFileActivities: (fileId) => query(`
+    SELECT id, file_id, activity_type, performed_by, performed_by_name, performed_at, details
+    FROM file_activities 
+    WHERE file_id = $1 
+    ORDER BY performed_at DESC
+  `, [fileId]),
+
+  // Create file activity
+  createFileActivity: (activityData) => {
+    const detailsValue = activityData.details ? JSON.stringify(activityData.details) : null
+    return query(`
+      INSERT INTO file_activities (file_id, activity_type, performed_by, performed_by_name, details)
+      VALUES ($1, $2, $3, $4, $5)
+      RETURNING *
+    `, [
+      activityData.file_id,
+      activityData.activity_type,
+      activityData.performed_by,
+      activityData.performed_by_name || null,
+      detailsValue
+    ])
+  }
+}
+
 module.exports = {
   pool,
   query,
   categoryQueries,
   productQueries,
-  documentQueries
+  documentQueries,
+  fileStorageQueries
 }
