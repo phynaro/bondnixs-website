@@ -1,8 +1,17 @@
 const express = require('express')
 const router = express.Router()
+const pool = require('../db/pool')
 const { productQueries, categoryQueries, documentQueries } = require('../db/pool')
 const { authenticateToken, requireAdmin } = require('../middleware/auth')
 const { handleUpload, handleDocumentUpload, deleteFile, getFileUrl, getDocumentUrl, formatFileSize, getFileTypeIcon } = require('../middleware/upload')
+const { sendContactNotification } = require('../services/emailService')
+const { 
+  contactRateLimit, 
+  emailCooldownCheck, 
+  trackSubmission, 
+  honeypotValidation, 
+  contentValidation 
+} = require('../middleware/rateLimiting')
 
 // Public routes
 
@@ -572,5 +581,125 @@ router.delete('/:productId/documents/:documentId', authenticateToken, requireAdm
     })
   }
 })
+
+// Request document download - Public (with user info)
+router.post('/:productId/documents/:documentId/download', 
+  contactRateLimit,
+  honeypotValidation,
+  contentValidation,
+  emailCooldownCheck,
+  trackSubmission,
+  async (req, res) => {
+    try {
+      const { productId, documentId } = req.params
+      const { name, email, company, phone } = req.body
+
+      // Basic validation
+      if (!name || !email) {
+        return res.status(400).json({
+          success: false,
+          message: 'Name and email are required'
+        })
+      }
+
+      // Email validation
+      const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/
+      if (!emailRegex.test(email)) {
+        return res.status(400).json({
+          success: false,
+          message: 'Invalid email format'
+        })
+      }
+
+      // Fetch document details
+      const documentResult = await documentQueries.getDocumentById(documentId)
+      if (documentResult.rows.length === 0) {
+        return res.status(404).json({
+          success: false,
+          message: 'Document not found'
+        })
+      }
+
+      const document = documentResult.rows[0]
+      
+      // Verify document belongs to the product
+      if (document.product_id !== productId) {
+        return res.status(400).json({
+          success: false,
+          message: 'Document does not belong to this product'
+        })
+      }
+
+      // Fetch product details
+      const productResult = await productQueries.getProductById(productId)
+      if (productResult.rows.length === 0) {
+        return res.status(404).json({
+          success: false,
+          message: 'Product not found'
+        })
+      }
+
+      const product = productResult.rows[0]
+
+      // Auto-generate subject and message
+      const subject = `Document Download Request - ${document.document_name}`
+      const message = `User downloaded: ${document.document_name} (${document.document_type}) for product ${product.model}`
+
+      // Save to contact_messages table
+      const result = await pool.query(`
+        INSERT INTO contact_messages (name, email, company, phone, subject, message, status)
+        VALUES ($1, $2, $3, $4, $5, $6, $7)
+        RETURNING id, name, email, company, phone, subject, message, status, created_at
+      `, [name, email, company || null, phone || null, subject, message, 'new'])
+
+      const savedMessage = result.rows[0]
+
+      // Get active recipients
+      const recipientsResult = await pool.query(`
+        SELECT id, name, email FROM email_recipients WHERE active = true
+      `)
+
+      const recipients = recipientsResult.rows
+
+      if (recipients.length > 0) {
+        try {
+          // Send notification email to admin recipients
+          // Include product and document info in the message
+          const notificationMessage = {
+            ...savedMessage,
+            product_name: product.name,
+            product_model: product.model,
+            document_name: document.document_name,
+            document_type: document.document_type,
+            is_document_download: true
+          }
+          await sendContactNotification(notificationMessage, recipients)
+          console.log('Document download notification email sent successfully')
+        } catch (emailError) {
+          console.error('Failed to send notification email:', emailError)
+          // Don't fail the request if email fails
+        }
+      }
+
+      // Return document URL for immediate download
+      const baseUrl = req.protocol + '://' + req.get('host')
+      const documentUrl = baseUrl + document.file_url
+
+      res.json({
+        success: true,
+        data: {
+          documentUrl: documentUrl,
+          documentName: document.document_name
+        }
+      })
+    } catch (error) {
+      console.error('Error processing document download request:', error)
+      res.status(500).json({
+        success: false,
+        message: 'Failed to process download request. Please try again later.'
+      })
+    }
+  }
+)
 
 module.exports = router

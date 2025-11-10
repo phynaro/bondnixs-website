@@ -198,6 +198,10 @@ export const documentAPI = {
   // Get all documents for a product
   getDocuments: (productId) => api.get(getApiPath(`/api/products/${productId}/documents`)),
   
+  // Request document download (with user info)
+  requestDocumentDownload: (productId, documentId, userInfo) => 
+    api.post(getApiPath(`/api/products/${productId}/documents/${documentId}/download`), userInfo),
+  
   // Upload document for a product
   uploadDocument: (productId, documentData) => {
     const formData = new FormData()

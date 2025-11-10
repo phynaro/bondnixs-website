@@ -50,4 +50,25 @@
   .container-custom {
     @apply max-w-7xl mx-auto px-4 sm:px-6 lg:px-8;
   }
+  
+  /* Modal Styles */
+  .modal-overlay {
+    @apply fixed inset-0 bg-gray-900/50 backdrop-blur-sm transition-opacity z-40;
+  }
+  
+  .modal-container {
+    @apply fixed inset-0 z-50 overflow-y-auto;
+  }
+  
+  .modal-wrapper {
+    @apply relative z-50;
+  }
+  
+  .modal-content {
+    @apply relative transform overflow-hidden rounded-lg bg-white text-left shadow-xl transition-all;
+  }
+  
+  .modal-close-button {
+    @apply rounded-md bg-white text-gray-400 hover:text-gray-500 focus:outline-none focus:ring-2 focus:ring-primary-500 focus:ring-offset-2;
+  }
 }

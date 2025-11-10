@@ -1,6 +1,7 @@
 import { useState, useEffect, useCallback } from 'react'
 import { useParams, Link } from 'react-router-dom'
 import { productAPI, documentAPI, getImageUrl, getDocumentUrl, formatFileSize, getFileTypeIcon } from '../services/api'
+import DownloadFormModal from '../components/DownloadFormModal'
 
 const ProductDetail = () => {
   const { model } = useParams()
@@ -9,6 +10,8 @@ const ProductDetail = () => {
   const [error, setError] = useState(null)
   const [documents, setDocuments] = useState([])
   const [documentsLoading, setDocumentsLoading] = useState(false)
+  const [selectedDocument, setSelectedDocument] = useState(null)
+  const [isModalOpen, setIsModalOpen] = useState(false)
 
   const fetchDocuments = useCallback(async (productId) => {
     try {
@@ -42,6 +45,16 @@ const ProductDetail = () => {
   useEffect(() => {
     fetchProduct()
   }, [fetchProduct])
+
+  const handleDownloadClick = (document) => {
+    setSelectedDocument(document)
+    setIsModalOpen(true)
+  }
+
+  const handleModalClose = () => {
+    setIsModalOpen(false)
+    setSelectedDocument(null)
+  }
 
   if (loading) {
     return (
@@ -267,17 +280,15 @@ const ProductDetail = () => {
                             </div>
                           </td>
                           <td className="px-6 py-4 whitespace-nowrap text-right text-sm font-medium">
-                            <a
-                              href={getDocumentUrl(document.file_url)}
-                              target="_blank"
-                              rel="noopener noreferrer"
+                            <button
+                              onClick={() => handleDownloadClick(document)}
                               className="inline-flex items-center px-4 py-2 border border-transparent text-sm font-medium rounded-md text-white bg-primary-600 hover:bg-primary-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-primary-500"
                             >
                               <svg className="w-4 h-4 mr-2" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                                 <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 10v6m0 0l-3-3m3 3l3-3m2 8H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z" />
                               </svg>
                               Download
-                            </a>
+                            </button>
                           </td>
                         </tr>
                       ))}
@@ -290,6 +301,16 @@ const ProductDetail = () => {
 
         </div>
       </div>
+
+      {/* Download Form Modal */}
+      {selectedDocument && (
+        <DownloadFormModal
+          isOpen={isModalOpen}
+          onClose={handleModalClose}
+          document={selectedDocument}
+          product={product}
+        />
+      )}
     </div>
   )
 }

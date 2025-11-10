@@ -37,6 +37,7 @@ services:
       - POSTGRES_DB=${POSTGRES_DB}
       - POSTGRES_USER=${POSTGRES_USER}
       - POSTGRES_PASSWORD=${POSTGRES_PASSWORD}
+      - RESEND_API_TOKEN=${RESEND_API_TOKEN}
     restart: unless-stopped
     depends_on:
       postgres:

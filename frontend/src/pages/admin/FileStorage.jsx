@@ -358,15 +358,18 @@ const FileStorage = () => {
 
       {/* Activities Modal */}
       {showActivities && selectedFile && (
-        <div className="fixed inset-0 bg-gray-600 bg-opacity-50 overflow-y-auto h-full w-full z-50" onClick={() => setShowActivities(false)}>
-          <div className="relative top-20 mx-auto p-5 border w-11/12 md:w-3/4 lg:w-1/2 shadow-lg rounded-md bg-white" onClick={(e) => e.stopPropagation()}>
+        <div className="modal-container" onClick={() => setShowActivities(false)}>
+          <div className="modal-overlay"></div>
+          <div className="modal-wrapper flex min-h-full items-center justify-center p-4">
+            <div className="modal-content w-11/12 md:w-3/4 lg:w-1/2" onClick={(e) => e.stopPropagation()}>
+              <div className="p-5">
             <div className="flex justify-between items-center mb-4">
               <h3 className="text-lg font-semibold text-gray-900">
                 Activity History: {selectedFile.original_name}
               </h3>
               <button
                 onClick={() => setShowActivities(false)}
-                className="p-1.5 text-gray-400 hover:text-gray-600 hover:bg-gray-100 rounded transition-colors"
+                className="modal-close-button p-1.5"
                 title="Close"
               >
                 <X className="h-5 w-5" />
@@ -398,6 +401,8 @@ const FileStorage = () => {
                   ))}
                 </div>
               )}
+            </div>
+              </div>
             </div>
           </div>
         </div>
