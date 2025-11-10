@@ -115,3 +115,6 @@ temp/
 
 #stop workflow
 .github/workflows/deploy.yml
+
+# Backups
+backups/
