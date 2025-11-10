@@ -179,7 +179,7 @@ const Products = () => {
                     {categoryProducts.map((product) => (
                       <Link
                         key={product.id}
-                        to={`/products/${product.model}`}
+                        to={`/products/${encodeURIComponent(product.model)}`}
                         className="bg-white rounded-lg shadow-lg overflow-hidden hover:shadow-xl transition-shadow duration-300 group"
                       >
                         {product.image_url ? (

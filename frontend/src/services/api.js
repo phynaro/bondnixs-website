@@ -129,7 +129,7 @@ export const productAPI = {
   // Public product APIs
   getProducts: () => api.get(getApiPath('/api/products')),
   
-  getProductByModel: (model) => api.get(getApiPath(`/api/products/${model}`)),
+  getProductByModel: (model) => api.get(getApiPath(`/api/products/${encodeURIComponent(model)}`)),
   
   // Admin product APIs
   getAllProductsAdmin: () => api.get(getApiPath('/api/products/admin/all')),

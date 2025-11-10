@@ -14,7 +14,8 @@ function isTabularSpecs(specs) {
 }
 
 const ProductDetail = () => {
-  const { model } = useParams()
+  const { model: encodedModel } = useParams()
+  const model = encodedModel ? decodeURIComponent(encodedModel) : null
   const [product, setProduct] = useState(null)
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState(null)
@@ -36,6 +37,7 @@ const ProductDetail = () => {
   }, [])
 
   const fetchProduct = useCallback(async () => {
+    if (!model) return
     try {
       const response = await productAPI.getProductByModel(model)
       setProduct(response.data.data)

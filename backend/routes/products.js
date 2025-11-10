@@ -76,8 +76,10 @@ router.get('/', async (req, res) => {
 // Get product by model
 router.get('/:model', async (req, res) => {
   try {
+    // Express automatically decodes URL parameters, but we'll decode explicitly to be safe
     const { model } = req.params
-    const result = await productQueries.getProductByModel(model)
+    const decodedModel = decodeURIComponent(model)
+    const result = await productQueries.getProductByModel(decodedModel)
     
     if (result.rows.length === 0) {
       return res.status(404).json({
