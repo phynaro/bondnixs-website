@@ -5,53 +5,87 @@ services:
       dockerfile: Dockerfile
       args:
         NODE_ENV: development
-    env_file:
-      - ./frontend/.env.development
-    volumes:
-      - ./frontend:/app
-      - /app/node_modules
-    depends_on:
-      - backend
+    environment:
+      - NODE_ENV=development
+    restart: unless-stopped
     networks:
       - bondnixs-network
+    healthcheck:
+      test: ["CMD", "wget", "--no-verbose", "--tries=1", "--spider", "http://localhost:3000"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+      start_period: 40s
 
   backend:
     build:
       context: ./backend
       dockerfile: Dockerfile
-    env_file:
-      - ./backend/.env.development
-    volumes:
-      - ./backend:/app
-      - /app/node_modules
+    environment:
+      - NODE_ENV=development
+      - DATABASE_URL=postgresql://bondnixs:${POSTGRES_PASSWORD}@postgres:5432/bondnixs_db
+      - REDIS_URL=redis://redis:6379
+      - JWT_SECRET=${JWT_SECRET}
+      - CORS_ORIGIN=${CORS_ORIGIN}
+      - FRONTEND_URL=${FRONTEND_URL}
+      - GOOGLE_CLIENT_ID=${GOOGLE_CLIENT_ID}
+      - GOOGLE_CLIENT_SECRET=${GOOGLE_CLIENT_SECRET}
+      - GOOGLE_CALLBACK_URL=${GOOGLE_CALLBACK_URL}
+      - ADMIN_EMAILS=${ADMIN_EMAILS}
+      - POSTGRES_HOST=${POSTGRES_HOST}
+      - POSTGRES_PORT=${POSTGRES_PORT}
+      - POSTGRES_DB=${POSTGRES_DB}
+      - POSTGRES_USER=${POSTGRES_USER}
+      - POSTGRES_PASSWORD=${POSTGRES_PASSWORD}
+    restart: unless-stopped
     depends_on:
-      - postgres
-      - redis
+      postgres:
+        condition: service_healthy
+      redis:
+        condition: service_healthy
     networks:
       - bondnixs-network
+    volumes:
+      - backend_uploads:/app/uploads
+    healthcheck:
+      test: ["CMD", "node", "healthcheck.js"]
+      interval: 30s
+      timeout: 15s
+      retries: 5
+      start_period: 60s
 
   postgres:
     image: postgres:15
     environment:
-      - POSTGRES_DB=bondnixs_dev
-      - POSTGRES_USER=bondnixs_dev
-      - POSTGRES_PASSWORD=devpassword123
-    ports:
-      - "5432:5432"
+      - POSTGRES_DB=bondnixs_db
+      - POSTGRES_USER=bondnixs
+      - POSTGRES_PASSWORD=${POSTGRES_PASSWORD}
     volumes:
       - postgres_data:/var/lib/postgresql/data
-      - ./backend/db/init.sql:/docker-entrypoint-initdb.d/init.sql
+      - ./backend/db/init.sql:/docker-entrypoint-initdb.d/init.sql:ro
+    restart: unless-stopped
     networks:
       - bondnixs-network
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U bondnixs -d bondnixs_db"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+      start_period: 30s
 
   redis:
     image: redis:7-alpine
-    ports:
-      - "6379:6379"
     volumes:
       - redis_data:/data
+    restart: unless-stopped
     networks:
       - bondnixs-network
+    healthcheck:
+      test: ["CMD", "redis-cli", "ping"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+      start_period: 30s
 
   nginx:
     image: nginx:alpine
@@ -60,16 +94,20 @@ services:
       - "443:443"
     volumes:
       - ./nginx.development.conf:/etc/nginx/nginx.conf
+      - ./ssl:/etc/nginx/ssl:ro
       - /var/www/html:/var/www/html:ro
     depends_on:
       - frontend
       - backend
+    restart: unless-stopped
     networks:
       - bondnixs-network
+
 
 volumes:
   postgres_data:
   redis_data:
+  backend_uploads:
 
 networks:
   bondnixs-network:
