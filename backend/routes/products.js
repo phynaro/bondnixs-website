@@ -141,7 +141,7 @@ router.get('/admin/all', authenticateToken, requireAdmin, async (req, res) => {
 // Create new product - Admin only
 router.post('/', authenticateToken, requireAdmin, handleMultipleImageUpload, async (req, res) => {
   try {
-    const { model, name, short_brief, description, features, specs, published, category_id } = req.body
+    const { model, name, short_brief, description, features, specs, published, category_id, display_order } = req.body
     
     // Validate required fields
     if (!model || !name || !category_id) {
@@ -240,7 +240,8 @@ router.post('/', authenticateToken, requireAdmin, handleMultipleImageUpload, asy
       features: parsedFeatures,
       specs: parsedSpecs ? JSON.stringify(parsedSpecs) : null, // Convert to JSON string for JSONB
       category_id,
-      published: published === 'true' || published === true
+      published: published === 'true' || published === true,
+      display_order: display_order !== undefined ? parseInt(display_order) || 0 : 0
     }
 
     // Create product
@@ -309,7 +310,7 @@ router.post('/', authenticateToken, requireAdmin, handleMultipleImageUpload, asy
 router.put('/:id', authenticateToken, requireAdmin, handleMultipleImageUpload, async (req, res) => {
   try {
     const { id } = req.params
-    const { model, name, short_brief, description, features, specs, published, category_id } = req.body
+    const { model, name, short_brief, description, features, specs, published, category_id, display_order } = req.body
 
     // Validate required fields
     if (!model || !name || !category_id) {
@@ -423,7 +424,8 @@ router.put('/:id', authenticateToken, requireAdmin, handleMultipleImageUpload, a
       features: parsedFeatures,
       specs: parsedSpecs ? JSON.stringify(parsedSpecs) : null, // Convert to JSON string for JSONB
       category_id,
-      published: published === 'true' || published === true
+      published: published === 'true' || published === true,
+      display_order: display_order !== undefined ? parseInt(display_order) || 0 : 0
     }
 
     // Update product

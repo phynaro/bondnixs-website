@@ -119,14 +119,14 @@ const productQueries = {
   getAllProducts: () => query(`
     SELECT 
       p.id, p.model, p.name, p.short_brief, p.description, 
-      p.features, p.specs, p.published, p.created_at, p.updated_at,
+      p.features, p.specs, p.published, p.display_order, p.created_at, p.updated_at,
       c.id as category_id, c.name as category_name, c.description as category_description,
       pi.image_url as primary_image_url
     FROM product p
     JOIN category c ON p.category_id = c.id
     LEFT JOIN product_images pi ON p.id = pi.product_id AND pi.is_primary = TRUE
     WHERE p.published = true 
-    ORDER BY c.display_order ASC, p.created_at DESC
+    ORDER BY c.display_order ASC, p.display_order ASC, p.name ASC
   `),
 
   // Get product by model with category info and all images
@@ -153,7 +153,7 @@ const productQueries = {
   getAllProductsAdmin: () => query(`
     SELECT 
       p.id, p.model, p.name, p.short_brief, p.description, 
-      p.features, p.specs, p.published, p.created_at, p.updated_at,
+      p.features, p.specs, p.published, p.display_order, p.created_at, p.updated_at,
       c.id as category_id, c.name as category_name, c.description as category_description,
       COALESCE(doc_counts.document_count, 0) as document_count,
       pi.image_url as primary_image_url
@@ -165,13 +165,13 @@ const productQueries = {
       GROUP BY product_id
     ) doc_counts ON p.id = doc_counts.product_id
     LEFT JOIN product_images pi ON p.id = pi.product_id AND pi.is_primary = TRUE
-    ORDER BY c.display_order ASC, p.created_at DESC
+    ORDER BY c.display_order ASC, p.display_order ASC, p.name ASC
   `),
 
   // Create new product
   createProduct: (productData) => query(`
-    INSERT INTO product (model, name, short_brief, description, features, specs, category_id, published)
-    VALUES ($1, $2, $3, $4, $5, $6, $7, $8)
+    INSERT INTO product (model, name, short_brief, description, features, specs, category_id, published, display_order)
+    VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9)
     RETURNING *
   `, [
     productData.model,
@@ -181,14 +181,15 @@ const productQueries = {
     productData.features,
     productData.specs,
     productData.category_id,
-    productData.published
+    productData.published,
+    productData.display_order || 0
   ]),
 
   // Update product
   updateProduct: (id, productData) => query(`
     UPDATE product 
     SET model = $2, name = $3, short_brief = $4, description = $5, 
-        features = $6, specs = $7, category_id = $8, published = $9, updated_at = now()
+        features = $6, specs = $7, category_id = $8, published = $9, display_order = $10, updated_at = now()
     WHERE id = $1
     RETURNING *
   `, [
@@ -200,7 +201,8 @@ const productQueries = {
     productData.features,
     productData.specs,
     productData.category_id,
-    productData.published
+    productData.published,
+    productData.display_order !== undefined ? productData.display_order : 0
   ]),
 
   // Delete product

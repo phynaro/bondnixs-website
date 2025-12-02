@@ -151,7 +151,16 @@ const Products = () => {
           {/* Show all products grouped by category */}
           <div className="space-y-16">
             {categories.map((category) => {
-              const categoryProducts = products.filter(product => product.category_id === category.id)
+              const categoryProducts = products
+                .filter(product => product.category_id === category.id)
+                .sort((a, b) => {
+                  // First sort by display_order
+                  if (a.display_order !== b.display_order) {
+                    return (a.display_order || 0) - (b.display_order || 0)
+                  }
+                  // Then by name
+                  return a.name.localeCompare(b.name)
+                })
               if (categoryProducts.length === 0) return null
               
               return (

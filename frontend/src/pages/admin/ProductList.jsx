@@ -62,19 +62,28 @@ const ProductList = () => {
     }
   }
 
-  const filteredProducts = products.filter(product => {
-    const matchesSearch = product.name.toLowerCase().includes(searchTerm.toLowerCase()) ||
-                         product.model.toLowerCase().includes(searchTerm.toLowerCase())
-    
-    const matchesStatus = filterStatus === 'all' || 
-                         (filterStatus === 'published' && product.published) ||
-                         (filterStatus === 'unpublished' && !product.published)
-    
-    const matchesCategory = filterCategory === 'all' || 
-                           product.category_id === filterCategory
-    
-    return matchesSearch && matchesStatus && matchesCategory
-  })
+  const filteredProducts = products
+    .filter(product => {
+      const matchesSearch = product.name.toLowerCase().includes(searchTerm.toLowerCase()) ||
+                           product.model.toLowerCase().includes(searchTerm.toLowerCase())
+      
+      const matchesStatus = filterStatus === 'all' || 
+                           (filterStatus === 'published' && product.published) ||
+                           (filterStatus === 'unpublished' && !product.published)
+      
+      const matchesCategory = filterCategory === 'all' || 
+                             product.category_id === filterCategory
+      
+      return matchesSearch && matchesStatus && matchesCategory
+    })
+    .sort((a, b) => {
+      // First sort by display_order
+      if (a.display_order !== b.display_order) {
+        return (a.display_order || 0) - (b.display_order || 0)
+      }
+      // Then by name
+      return a.name.localeCompare(b.name)
+    })
 
   if (loading) {
     return (
@@ -174,6 +183,9 @@ const ProductList = () => {
                       Category
                     </th>
                     <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                      Order
+                    </th>
+                    <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
                       Status
                     </th>
                     <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
@@ -243,6 +255,9 @@ const ProductList = () => {
                       </td>
                       <td className="px-6 py-4 whitespace-nowrap">
                         <div className="text-sm text-gray-900">{product.category_name || 'No category'}</div>
+                      </td>
+                      <td className="px-6 py-4 whitespace-nowrap">
+                        <div className="text-sm text-gray-900">{product.display_order || 0}</div>
                       </td>
                       <td className="px-6 py-4 whitespace-nowrap">
                         <button

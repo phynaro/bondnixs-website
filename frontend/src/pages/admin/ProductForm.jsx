@@ -26,6 +26,7 @@ const ProductForm = () => {
     specs: [], // Changed from {} to [] for ordered specifications
     category_id: '',
     published: true,
+    display_order: 0,
     images: [] // Array of File objects for new images
   })
   const [specsFormat, setSpecsFormat] = useState('keyvalue') // 'keyvalue' or 'tabular'
@@ -77,6 +78,7 @@ const ProductForm = () => {
             specs: [],
             category_id: product.category_id || '',
             published: product.published,
+            display_order: product.display_order || 0,
             image: null
           })
         } else {
@@ -107,6 +109,7 @@ const ProductForm = () => {
             specs: specsArray,
             category_id: product.category_id || '',
             published: product.published,
+            display_order: product.display_order || 0,
             images: []
           })
         }
@@ -149,7 +152,7 @@ const ProductForm = () => {
     const { name, value, type, checked } = e.target
     setFormData(prev => ({
       ...prev,
-      [name]: type === 'checkbox' ? checked : value
+      [name]: type === 'checkbox' ? checked : (type === 'number' ? (value === '' ? 0 : parseInt(value, 10)) : value)
     }))
   }
 
@@ -709,6 +712,23 @@ const ProductForm = () => {
               className="w-full px-3 py-2 border border-gray-300 rounded-md shadow-sm focus:outline-none focus:ring-primary-500 focus:border-primary-500"
               placeholder="Detailed description of the product"
             />
+          </div>
+
+          <div className="mt-6">
+            <label htmlFor="display_order" className="block text-sm font-medium text-gray-700 mb-2">
+              Display Order
+            </label>
+            <input
+              type="number"
+              id="display_order"
+              name="display_order"
+              value={formData.display_order}
+              onChange={handleInputChange}
+              className="w-full px-3 py-2 border border-gray-300 rounded-md shadow-sm focus:outline-none focus:ring-primary-500 focus:border-primary-500"
+              placeholder="0"
+              min="0"
+            />
+            <p className="mt-1 text-sm text-gray-500">Lower numbers appear first. Products are sorted by display order, then by name.</p>
           </div>
 
           <div className="mt-6">
