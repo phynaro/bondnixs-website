@@ -21,6 +21,16 @@ import CategoryList from './pages/admin/CategoryList'
 import MessageList from './pages/admin/MessageList'
 import RecipientList from './pages/admin/RecipientList'
 import FileStorage from './pages/admin/FileStorage'
+import HomeContentList from './pages/admin/HomeContentList'
+import HomeContentForm from './pages/admin/HomeContentForm'
+import SolutionsContentList from './pages/admin/SolutionsContentList'
+import SolutionsContentForm from './pages/admin/SolutionsContentForm'
+import AboutContentList from './pages/admin/AboutContentList'
+import AboutContentForm from './pages/admin/AboutContentForm'
+import ProductsContentList from './pages/admin/ProductsContentList'
+import ProductsContentForm from './pages/admin/ProductsContentForm'
+import ContactFaqList from './pages/admin/ContactFaqList'
+import ContactFaqForm from './pages/admin/ContactFaqForm'
 
 function App() {
   return (
@@ -83,6 +93,111 @@ function App() {
             <ProtectedRoute>
               <AdminLayout>
                 <ProductForm />
+              </AdminLayout>
+            </ProtectedRoute>
+          } />
+          <Route path="/admin/home-content" element={
+            <ProtectedRoute>
+              <AdminLayout>
+                <HomeContentList />
+              </AdminLayout>
+            </ProtectedRoute>
+          } />
+          <Route path="/admin/home-content/new" element={
+            <ProtectedRoute>
+              <AdminLayout>
+                <HomeContentForm />
+              </AdminLayout>
+            </ProtectedRoute>
+          } />
+          <Route path="/admin/home-content/edit/:id" element={
+            <ProtectedRoute>
+              <AdminLayout>
+                <HomeContentForm />
+              </AdminLayout>
+            </ProtectedRoute>
+          } />
+          <Route path="/admin/solutions-content" element={
+            <ProtectedRoute>
+              <AdminLayout>
+                <SolutionsContentList />
+              </AdminLayout>
+            </ProtectedRoute>
+          } />
+          <Route path="/admin/solutions-content/new" element={
+            <ProtectedRoute>
+              <AdminLayout>
+                <SolutionsContentForm />
+              </AdminLayout>
+            </ProtectedRoute>
+          } />
+          <Route path="/admin/solutions-content/edit/:id" element={
+            <ProtectedRoute>
+              <AdminLayout>
+                <SolutionsContentForm />
+              </AdminLayout>
+            </ProtectedRoute>
+          } />
+          <Route path="/admin/about-content" element={
+            <ProtectedRoute>
+              <AdminLayout>
+                <AboutContentList />
+              </AdminLayout>
+            </ProtectedRoute>
+          } />
+          <Route path="/admin/about-content/new" element={
+            <ProtectedRoute>
+              <AdminLayout>
+                <AboutContentForm />
+              </AdminLayout>
+            </ProtectedRoute>
+          } />
+          <Route path="/admin/about-content/edit/:id" element={
+            <ProtectedRoute>
+              <AdminLayout>
+                <AboutContentForm />
+              </AdminLayout>
+            </ProtectedRoute>
+          } />
+          <Route path="/admin/products-content" element={
+            <ProtectedRoute>
+              <AdminLayout>
+                <ProductsContentList />
+              </AdminLayout>
+            </ProtectedRoute>
+          } />
+          <Route path="/admin/products-content/new" element={
+            <ProtectedRoute>
+              <AdminLayout>
+                <ProductsContentForm />
+              </AdminLayout>
+            </ProtectedRoute>
+          } />
+          <Route path="/admin/products-content/edit/:id" element={
+            <ProtectedRoute>
+              <AdminLayout>
+                <ProductsContentForm />
+              </AdminLayout>
+            </ProtectedRoute>
+          } />
+          <Route path="/admin/faq" element={
+            <ProtectedRoute>
+              <AdminLayout>
+                <ContactFaqList />
+              </AdminLayout>
+            </ProtectedRoute>
+          } />
+          <Route path="/admin/faq/new" element={
+            <ProtectedRoute>
+              <AdminLayout>
+                <ContactFaqForm />
+              </AdminLayout>
+            </ProtectedRoute>
+          } />
+          <Route path="/admin/faq/edit/:id" element={
+            <ProtectedRoute>
+              <AdminLayout>
+                <ContactFaqForm />
               </AdminLayout>
             </ProtectedRoute>
           } />

@@ -1,6 +1,6 @@
 import { useState, useEffect, useCallback } from 'react'
 import { useNavigate, useParams } from 'react-router-dom'
-import { productAPI, categoryAPI, documentAPI, getImageUrl, getDocumentUrl, formatFileSize, getFileTypeIcon } from '../../services/api'
+import { productAPI, productImageAPI, categoryAPI, documentAPI, getImageUrl, getDocumentUrl, formatFileSize, getFileTypeIcon } from '../../services/api'
 
 // Helper function to detect if specs are in tabular format
 function isTabularSpecs(specs) {
@@ -26,14 +26,14 @@ const ProductForm = () => {
     specs: [], // Changed from {} to [] for ordered specifications
     category_id: '',
     published: true,
-    image: null
+    images: [] // Array of File objects for new images
   })
   const [specsFormat, setSpecsFormat] = useState('keyvalue') // 'keyvalue' or 'tabular'
   const [tabularSpecs, setTabularSpecs] = useState({
     columns: [],
     rows: []
   })
-  const [existingImage, setExistingImage] = useState(null)
+  const [existingImages, setExistingImages] = useState([]) // Array of existing images from API
   const [categories, setCategories] = useState([])
   const [loading, setLoading] = useState(false)
   const [errors, setErrors] = useState({})
@@ -107,10 +107,15 @@ const ProductForm = () => {
             specs: specsArray,
             category_id: product.category_id || '',
             published: product.published,
-            image: null
+            images: []
           })
         }
-        setExistingImage(product.image_url)
+        // Load existing images
+        if (product.images && Array.isArray(product.images)) {
+          setExistingImages(product.images)
+        } else {
+          setExistingImages([])
+        }
       }
     } catch (error) {
       console.error('Error fetching product:', error)
@@ -149,9 +154,114 @@ const ProductForm = () => {
   }
 
   const handleImageChange = (e) => {
-    const file = e.target.files[0]
-    if (file) {
-      setFormData(prev => ({ ...prev, image: file }))
+    const files = Array.from(e.target.files || [])
+    if (files.length > 0) {
+      setFormData(prev => ({ 
+        ...prev, 
+        images: [...prev.images, ...files].slice(0, 10) // Max 10 images
+      }))
+    }
+    // Reset input to allow selecting same file again
+    e.target.value = ''
+  }
+
+  const removeNewImage = (index) => {
+    setFormData(prev => ({
+      ...prev,
+      images: prev.images.filter((_, i) => i !== index)
+    }))
+  }
+
+  const handleDeleteExistingImage = async (imageId) => {
+    if (!window.confirm('Are you sure you want to delete this image?')) {
+      return
+    }
+
+    try {
+      await productImageAPI.deleteImage(id, imageId)
+      setExistingImages(prev => prev.filter(img => img.id !== imageId))
+      alert('Image deleted successfully!')
+    } catch (error) {
+      console.error('Error deleting image:', error)
+      alert('Failed to delete image')
+    }
+  }
+
+  const handleSetPrimaryImage = async (imageId) => {
+    try {
+      await productImageAPI.setPrimaryImage(id, imageId)
+      setExistingImages(prev => prev.map(img => ({
+        ...img,
+        is_primary: img.id === imageId
+      })))
+      alert('Primary image updated successfully!')
+    } catch (error) {
+      console.error('Error setting primary image:', error)
+      alert('Failed to set primary image')
+    }
+  }
+
+  const moveImageUp = (index, isExisting) => {
+    if (isExisting) {
+      // Reorder existing images
+      const newImages = [...existingImages]
+      if (index === 0) return
+      const temp = newImages[index]
+      newImages[index] = newImages[index - 1]
+      newImages[index - 1] = temp
+      setExistingImages(newImages)
+      // Update display_order via API
+      const imageOrders = newImages.map((img, i) => ({
+        id: img.id,
+        display_order: i
+      }))
+      productImageAPI.reorderImages(id, imageOrders).catch(err => {
+        console.error('Error reordering images:', err)
+        // Revert on error
+        fetchProduct()
+      })
+    } else {
+      // Reorder new images
+      setFormData(prev => {
+        const newImages = [...prev.images]
+        if (index === 0) return prev
+        const temp = newImages[index]
+        newImages[index] = newImages[index - 1]
+        newImages[index - 1] = temp
+        return { ...prev, images: newImages }
+      })
+    }
+  }
+
+  const moveImageDown = (index, isExisting) => {
+    if (isExisting) {
+      // Reorder existing images
+      const newImages = [...existingImages]
+      if (index === newImages.length - 1) return
+      const temp = newImages[index]
+      newImages[index] = newImages[index + 1]
+      newImages[index + 1] = temp
+      setExistingImages(newImages)
+      // Update display_order via API
+      const imageOrders = newImages.map((img, i) => ({
+        id: img.id,
+        display_order: i
+      }))
+      productImageAPI.reorderImages(id, imageOrders).catch(err => {
+        console.error('Error reordering images:', err)
+        // Revert on error
+        fetchProduct()
+      })
+    } else {
+      // Reorder new images
+      setFormData(prev => {
+        const newImages = [...prev.images]
+        if (index === newImages.length - 1) return prev
+        const temp = newImages[index]
+        newImages[index] = newImages[index + 1]
+        newImages[index + 1] = temp
+        return { ...prev, images: newImages }
+      })
     }
   }
 
@@ -471,11 +581,13 @@ const ProductForm = () => {
       
       const submitData = {
         ...formData,
-        specs: formattedSpecs
+        specs: formattedSpecs,
+        images: formData.images // Include images array
       }
       
       if (isEdit) {
         await productAPI.updateProduct(id, submitData)
+        // If there are new images, they will be uploaded with the update
         alert('Product updated successfully!')
       } else {
         const response = await productAPI.createProduct(submitData)
@@ -615,42 +727,162 @@ const ProductForm = () => {
 
         {/* Image Upload */}
         <div className="bg-white shadow rounded-lg p-6">
-          <h2 className="text-lg font-medium text-gray-900 mb-4">Product Image</h2>
+          <h2 className="text-lg font-medium text-gray-900 mb-4">Product Images</h2>
           
-          <div className="space-y-4">
-            {existingImage && !formData.image && (
+          <div className="space-y-6">
+            {/* Existing Images */}
+            {isEdit && existingImages.length > 0 && (
               <div>
-                <p className="text-sm text-gray-600 mb-2">Current image:</p>
-                <img
-                  src={getImageUrl(existingImage)}
-                  alt="Current product"
-                  className="h-32 w-32 object-cover rounded-lg"
-                />
+                <p className="text-sm font-medium text-gray-700 mb-3">Existing Images</p>
+                <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
+                  {existingImages.map((image, index) => (
+                    <div key={image.id} className="relative group">
+                      <div className="relative aspect-square rounded-lg overflow-hidden border-2 border-gray-200 bg-gray-100">
+                        <img
+                          src={getImageUrl(image.image_url)}
+                          alt={`Product image ${index + 1}`}
+                          className="w-full h-full object-contain"
+                          onError={(e) => {
+                            console.error('Image failed to load:', image.image_url)
+                            e.target.style.display = 'none'
+                          }}
+                        />
+                        {image.is_primary && (
+                          <div className="absolute top-2 left-2 bg-primary-600 text-white text-xs px-2 py-1 rounded z-10">
+                            Primary
+                          </div>
+                        )}
+                        <div className="absolute inset-0 flex items-center justify-center gap-2 opacity-0 group-hover:opacity-100 transition-opacity pointer-events-none">
+                          <button
+                            type="button"
+                            onClick={() => handleSetPrimaryImage(image.id)}
+                            disabled={image.is_primary}
+                            className={`px-3 py-1 text-xs rounded text-white shadow-lg pointer-events-auto ${
+                              image.is_primary 
+                                ? 'bg-gray-500 cursor-not-allowed' 
+                                : 'bg-primary-600 hover:bg-primary-700'
+                            }`}
+                            title={image.is_primary ? 'Already primary' : 'Set as primary'}
+                          >
+                            {image.is_primary ? 'Primary' : 'Set Primary'}
+                          </button>
+                          <button
+                            type="button"
+                            onClick={() => handleDeleteExistingImage(image.id)}
+                            className="px-3 py-1 text-xs rounded bg-red-600 hover:bg-red-700 text-white shadow-lg pointer-events-auto"
+                            title="Delete image"
+                          >
+                            Delete
+                          </button>
+                        </div>
+                      </div>
+                      <div className="mt-2 flex items-center justify-center gap-1">
+                        <button
+                          type="button"
+                          onClick={() => moveImageUp(index, true)}
+                          disabled={index === 0}
+                          className={`p-1 rounded text-xs ${
+                            index === 0 
+                              ? 'text-gray-300 cursor-not-allowed' 
+                              : 'text-gray-600 hover:text-gray-800 hover:bg-gray-100'
+                          }`}
+                          title="Move up"
+                        >
+                          ▲
+                        </button>
+                        <span className="text-xs text-gray-500">{index + 1}</span>
+                        <button
+                          type="button"
+                          onClick={() => moveImageDown(index, true)}
+                          disabled={index === existingImages.length - 1}
+                          className={`p-1 rounded text-xs ${
+                            index === existingImages.length - 1 
+                              ? 'text-gray-300 cursor-not-allowed' 
+                              : 'text-gray-600 hover:text-gray-800 hover:bg-gray-100'
+                          }`}
+                          title="Move down"
+                        >
+                          ▼
+                        </button>
+                      </div>
+                    </div>
+                  ))}
+                </div>
               </div>
             )}
-            
+
+            {/* New Images Upload */}
             <div>
-              <label htmlFor="image" className="block text-sm font-medium text-gray-700 mb-2">
-                {isEdit ? 'Change Image' : 'Upload Image'}
+              <label htmlFor="images" className="block text-sm font-medium text-gray-700 mb-2">
+                {isEdit ? 'Add More Images' : 'Upload Images'}
               </label>
               <input
                 type="file"
-                id="image"
+                id="images"
                 accept="image/*"
+                multiple
                 onChange={handleImageChange}
                 className="w-full px-3 py-2 border border-gray-300 rounded-md shadow-sm focus:outline-none focus:ring-primary-500 focus:border-primary-500"
               />
-              <p className="mt-1 text-sm text-gray-500">PNG, JPG, WebP up to 5MB</p>
+              <p className="mt-1 text-sm text-gray-500">PNG, JPG, WebP up to 10MB each. Maximum 10 images.</p>
             </div>
 
-            {formData.image && (
+            {/* New Images Preview */}
+            {formData.images.length > 0 && (
               <div>
-                <p className="text-sm text-gray-600 mb-2">New image preview:</p>
-                <img
-                  src={URL.createObjectURL(formData.image)}
-                  alt="Preview"
-                  className="h-32 w-32 object-cover rounded-lg"
-                />
+                <p className="text-sm font-medium text-gray-700 mb-3">New Images (will be uploaded on save)</p>
+                <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
+                  {formData.images.map((image, index) => (
+                    <div key={index} className="relative group">
+                      <div className="relative aspect-square rounded-lg overflow-hidden border-2 border-gray-200 bg-gray-100">
+                        <img
+                          src={URL.createObjectURL(image)}
+                          alt={`Preview ${index + 1}`}
+                          className="w-full h-full object-contain"
+                        />
+                        <div className="absolute inset-0 flex items-center justify-center opacity-0 group-hover:opacity-100 transition-opacity pointer-events-none">
+                          <button
+                            type="button"
+                            onClick={() => removeNewImage(index)}
+                            className="px-3 py-1 text-xs rounded bg-red-600 hover:bg-red-700 text-white shadow-lg pointer-events-auto"
+                            title="Remove image"
+                          >
+                            Remove
+                          </button>
+                        </div>
+                      </div>
+                      <div className="mt-2 flex items-center justify-center gap-1">
+                        <button
+                          type="button"
+                          onClick={() => moveImageUp(index, false)}
+                          disabled={index === 0}
+                          className={`p-1 rounded text-xs ${
+                            index === 0 
+                              ? 'text-gray-300 cursor-not-allowed' 
+                              : 'text-gray-600 hover:text-gray-800 hover:bg-gray-100'
+                          }`}
+                          title="Move up"
+                        >
+                          ▲
+                        </button>
+                        <span className="text-xs text-gray-500">{index + 1}</span>
+                        <button
+                          type="button"
+                          onClick={() => moveImageDown(index, false)}
+                          disabled={index === formData.images.length - 1}
+                          className={`p-1 rounded text-xs ${
+                            index === formData.images.length - 1 
+                              ? 'text-gray-300 cursor-not-allowed' 
+                              : 'text-gray-600 hover:text-gray-800 hover:bg-gray-100'
+                          }`}
+                          title="Move down"
+                        >
+                          ▼
+                        </button>
+                      </div>
+                    </div>
+                  ))}
+                </div>
               </div>
             )}
           </div>

@@ -7,6 +7,7 @@ const crypto = require('crypto')
 const productUploadDir = path.join(__dirname, '../uploads/products')
 const documentUploadDir = path.join(__dirname, '../uploads/documents')
 const fileStorageUploadDir = path.join(__dirname, '../uploads/storage')
+const contentUploadDir = path.join(__dirname, '../uploads/content')
 
 if (!fs.existsSync(productUploadDir)) {
   fs.mkdirSync(productUploadDir, { recursive: true })
@@ -18,6 +19,10 @@ if (!fs.existsSync(documentUploadDir)) {
 
 if (!fs.existsSync(fileStorageUploadDir)) {
   fs.mkdirSync(fileStorageUploadDir, { recursive: true })
+}
+
+if (!fs.existsSync(contentUploadDir)) {
+  fs.mkdirSync(contentUploadDir, { recursive: true })
 }
 
 // Configure multer storage for products (images)
@@ -43,6 +48,19 @@ const documentStorage = multer.diskStorage({
     const uniqueSuffix = Date.now() + '-' + Math.round(Math.random() * 1E9)
     const ext = path.extname(file.originalname)
     cb(null, file.fieldname + '-' + uniqueSuffix + ext)
+  }
+})
+
+// Configure multer storage for content images
+const contentStorage = multer.diskStorage({
+  destination: (req, file, cb) => {
+    cb(null, contentUploadDir)
+  },
+  filename: (req, file, cb) => {
+    // Generate unique filename with timestamp
+    const uniqueSuffix = Date.now() + '-' + Math.round(Math.random() * 1E9)
+    const ext = path.extname(file.originalname)
+    cb(null, 'content-' + uniqueSuffix + ext)
   }
 })
 
@@ -134,6 +152,15 @@ const documentUpload = multer({
   fileFilter: documentFileFilter
 })
 
+// Configure multer for content images
+const contentUpload = multer({
+  storage: contentStorage,
+  limits: {
+    fileSize: 10 * 1024 * 1024 // 10MB limit
+  },
+  fileFilter: imageFileFilter
+})
+
 // Configure multer for file storage
 const fileStorageUpload = multer({
   storage: fileStorageStorage,
@@ -146,8 +173,14 @@ const fileStorageUpload = multer({
 // Middleware for single image upload
 const uploadSingle = productUpload.single('image')
 
+// Middleware for multiple image uploads (max 10 images)
+const uploadMultiple = productUpload.array('images', 10)
+
 // Middleware for single document upload
 const uploadDocument = documentUpload.single('document')
+
+// Middleware for single content image upload
+const uploadContentImage = contentUpload.single('image')
 
 // Middleware for single file storage upload
 const uploadFileStorage = fileStorageUpload.single('file')
@@ -160,6 +193,36 @@ const handleUpload = (req, res, next) => {
         return res.status(400).json({
           success: false,
           message: 'File too large. Maximum size is 10MB.'
+        })
+      }
+      return res.status(400).json({
+        success: false,
+        message: 'File upload error: ' + err.message
+      })
+    } else if (err) {
+      return res.status(400).json({
+        success: false,
+        message: err.message
+      })
+    }
+    next()
+  })
+}
+
+// Middleware wrapper to handle multiple image uploads
+const handleMultipleImageUpload = (req, res, next) => {
+  uploadMultiple(req, res, (err) => {
+    if (err instanceof multer.MulterError) {
+      if (err.code === 'LIMIT_FILE_SIZE') {
+        return res.status(400).json({
+          success: false,
+          message: 'File too large. Maximum size is 10MB per image.'
+        })
+      }
+      if (err.code === 'LIMIT_FILE_COUNT') {
+        return res.status(400).json({
+          success: false,
+          message: 'Too many files. Maximum is 10 images.'
         })
       }
       return res.status(400).json({
@@ -195,6 +258,39 @@ const handleDocumentUpload = (req, res, next) => {
         success: false,
         message: err.message
       })
+    }
+    next()
+  })
+}
+
+// Middleware wrapper to handle multer errors for content images
+const handleContentImageUpload = (req, res, next) => {
+  // If Content-Type is not multipart/form-data, skip multer and let express.json handle it
+  if (req.headers['content-type'] && !req.headers['content-type'].includes('multipart/form-data')) {
+    return next()
+  }
+  
+  uploadContentImage(req, res, (err) => {
+    if (err instanceof multer.MulterError) {
+      if (err.code === 'LIMIT_FILE_SIZE') {
+        return res.status(400).json({
+          success: false,
+          message: 'File too large. Maximum size is 10MB.'
+        })
+      }
+      return res.status(400).json({
+        success: false,
+        message: 'File upload error: ' + err.message
+      })
+    } else if (err) {
+      return res.status(400).json({
+        success: false,
+        message: err.message
+      })
+    }
+    // Ensure req.body exists (multer should populate it)
+    if (!req.body) {
+      req.body = {}
     }
     next()
   })
@@ -241,6 +337,12 @@ const deleteFile = (filePath) => {
 const getFileUrl = (filename) => {
   if (!filename) return null
   return `/uploads/products/${filename}`
+}
+
+// Helper function to get content image URL
+const getContentImageUrl = (filename) => {
+  if (!filename) return null
+  return `/uploads/content/${filename}`
 }
 
 // Helper function to get document URL
@@ -330,10 +432,13 @@ module.exports = {
   documentUpload,
   fileStorageUpload,
   handleUpload,
+  handleMultipleImageUpload,
   handleDocumentUpload,
   handleFileStorageUpload,
+  handleContentImageUpload,
   deleteFile,
   getFileUrl,
+  getContentImageUrl,
   getDocumentUrl,
   getFileStorageUrl,
   formatFileSize,

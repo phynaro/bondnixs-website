@@ -47,6 +47,11 @@ app.use(passport.session())
 // Serve static files from uploads directory
 app.use('/uploads', express.static(path.join(__dirname, 'uploads')))
 app.use('/api/uploads', express.static(path.join(__dirname, 'uploads')))
+// Ensure content uploads directory exists
+const contentUploadDir = path.join(__dirname, 'uploads', 'content')
+if (!require('fs').existsSync(contentUploadDir)) {
+  require('fs').mkdirSync(contentUploadDir, { recursive: true })
+}
 
 // Routes
 app.get('/', (req, res) => {
@@ -65,6 +70,11 @@ app.use('/api/contact', require('./routes/contact'))
 app.use('/api/recipients', require('./routes/recipients'))
 app.use('/api/solutions', require('./routes/solutions'))
 app.use('/api/files', require('./routes/files'))
+app.use('/api/home-content', require('./routes/homeContent'))
+app.use('/api/solutions-content', require('./routes/solutionsContent'))
+app.use('/api/about-content', require('./routes/aboutContent'))
+app.use('/api/products-content', require('./routes/productsContent'))
+app.use('/api/contact-faq', require('./routes/contactFaq'))
 
 // Health check endpoint
 app.get('/health', (req, res) => {

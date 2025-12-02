@@ -1,10 +1,13 @@
 import { useState, useEffect } from 'react'
 import { Link } from 'react-router-dom'
-import { productAPI, categoryAPI, getImageUrl } from '../services/api'
+import { productAPI, categoryAPI, productsContentAPI, getImageUrl } from '../services/api'
 
 const Products = () => {
   const [products, setProducts] = useState([])
   const [categories, setCategories] = useState([])
+  const [engineeringServices, setEngineeringServices] = useState([])
+  const [afterSalesServices, setAfterSalesServices] = useState([])
+  const [industryApplications, setIndustryApplications] = useState([])
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState(null)
   const [activeCategory, setActiveCategory] = useState('all')
@@ -15,12 +18,18 @@ const Products = () => {
 
   const fetchData = async () => {
     try {
-      const [productsResponse, categoriesResponse] = await Promise.all([
+      const [productsResponse, categoriesResponse, engineeringResponse, afterSalesResponse, applicationsResponse] = await Promise.all([
         productAPI.getProducts(),
-        categoryAPI.getCategories()
+        categoryAPI.getCategories(),
+        productsContentAPI.getContentByType('engineering_service'),
+        productsContentAPI.getContentByType('after_sales_service'),
+        productsContentAPI.getContentByType('industry_application')
       ])
       setProducts(productsResponse.data.data)
       setCategories(categoriesResponse.data.data)
+      setEngineeringServices(engineeringResponse.data.data)
+      setAfterSalesServices(afterSalesResponse.data.data)
+      setIndustryApplications(applicationsResponse.data.data)
       
     } catch (error) {
       console.error('Error fetching data:', error)
@@ -79,23 +88,6 @@ const Products = () => {
     )
   }
 
-  const applications = [
-    {
-      name: "Potting",
-      description: "Protective potting applications for electronic components",
-      icon: "🔧"
-    },
-    {
-      name: "Conformal Coating", 
-      description: "Protective coating applications for circuit boards",
-      icon: "🛡️"
-    },
-    {
-      name: "Solder Paste",
-      description: "Precise solder paste dispensing for PCB assembly",
-      icon: "⚡"
-    }
-  ]
 
   return (
     <div>
@@ -182,12 +174,14 @@ const Products = () => {
                         to={`/products/${encodeURIComponent(product.model)}`}
                         className="bg-white rounded-lg shadow-lg overflow-hidden hover:shadow-xl transition-shadow duration-300 group"
                       >
-                        {product.image_url ? (
-                          <img
-                            src={getImageUrl(product.image_url)}
-                            alt={product.name}
-                            className="w-full h-48 object-cover group-hover:scale-105 transition-transform duration-300"
-                          />
+                        {product.primary_image_url ? (
+                          <div className="w-full h-48 bg-gray-100 flex items-center justify-center overflow-hidden">
+                            <img
+                              src={getImageUrl(product.primary_image_url)}
+                              alt={product.name}
+                              className="max-w-full max-h-full object-contain group-hover:scale-105 transition-transform duration-300"
+                            />
+                          </div>
                         ) : (
                           <div className="w-full h-48 bg-gray-200 flex items-center justify-center">
                             <div className="text-center">
@@ -256,36 +250,29 @@ const Products = () => {
           </div>
 
           <div className="grid grid-cols-1 md:grid-cols-3 gap-8">
-            <div className="bg-white rounded-lg shadow-md p-6 text-center">
-              <div className="w-16 h-16 bg-primary-100 rounded-full flex items-center justify-center mx-auto mb-4">
-                <svg className="w-8 h-8 text-primary-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z" />
-                </svg>
+            {engineeringServices.map((service) => (
+              <div key={service.id} className="bg-white rounded-lg shadow-md p-6 text-center">
+                {service.image_url ? (
+                  <div className="w-16 h-16 rounded-full flex items-center justify-center mx-auto mb-4 overflow-hidden">
+                    <img
+                      src={getImageUrl(service.image_url)}
+                      alt={service.title}
+                      className="w-full h-full object-cover"
+                    />
+                  </div>
+                ) : (
+                  <div className="w-16 h-16 rounded-full flex items-center justify-center mx-auto mb-4">
+                    <svg className="w-8 h-8 text-primary-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z" />
+                    </svg>
+                  </div>
+                )}
+                <h3 className="text-xl font-semibold mb-2">{service.title}</h3>
+                {service.description && (
+                  <p className="text-gray-600">{service.description}</p>
+                )}
               </div>
-              <h3 className="text-xl font-semibold mb-2">Drawing</h3>
-              <p className="text-gray-600">Professional technical drawings and specifications for your projects</p>
-            </div>
-
-            <div className="bg-white rounded-lg shadow-md p-6 text-center">
-              <div className="w-16 h-16 bg-primary-100 rounded-full flex items-center justify-center mx-auto mb-4">
-                <svg className="w-8 h-8 text-primary-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19.428 15.428a2 2 0 00-1.022-.547l-2.387-.477a6 6 0 00-3.86.517l-.318.158a6 6 0 01-3.86.517L6.05 15.21a2 2 0 00-1.806.547M8 4h8l-1 1v5.172a2 2 0 00.586 1.414l5 5c1.26 1.26.367 3.414-1.415 3.414H4.828c-1.782 0-2.674-2.154-1.414-3.414l5-5A2 2 0 009 10.172V5L8 4z" />
-                </svg>
-              </div>
-              <h3 className="text-xl font-semibold mb-2">Part Fabrication</h3>
-              <p className="text-gray-600">Custom parts and components manufactured to your specifications</p>
-            </div>
-
-            <div className="bg-white rounded-lg shadow-md p-6 text-center">
-              <div className="w-16 h-16 bg-primary-100 rounded-full flex items-center justify-center mx-auto mb-4">
-                <svg className="w-8 h-8 text-primary-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M10.325 4.317c.426-1.756 2.924-1.756 3.35 0a1.724 1.724 0 002.573 1.066c1.543-.94 3.31.826 2.37 2.37a1.724 1.724 0 001.065 2.572c1.756.426 1.756 2.924 0 3.35a1.724 1.724 0 00-1.066 2.573c.94 1.543-.826 3.31-2.37 2.37a1.724 1.724 0 00-2.572 1.065c-.426 1.756-2.924 1.756-3.35 0a1.724 1.724 0 00-2.573-1.066c-1.543.94-3.31-.826-2.37-2.37a1.724 1.724 0 00-1.065-2.572c-1.756-.426-1.756-2.924 0-3.35a1.724 1.724 0 001.066-2.573c-.94-1.543.826-3.31 2.37-2.37.996.608 2.296.07 2.572-1.065z" />
-                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15 12a3 3 0 11-6 0 3 3 0 016 0z" />
-                </svg>
-              </div>
-              <h3 className="text-xl font-semibold mb-2">System Integration</h3>
-              <p className="text-gray-600">Complete system integration and optimization for maximum efficiency</p>
-            </div>
+            ))}
           </div>
         </div>
       </section>
@@ -303,16 +290,23 @@ const Products = () => {
           </div>
 
           <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-5 gap-6">
-            {[
-              { name: "Maintenance", icon: "🔧" },
-              { name: "Troubleshooting", icon: "🔍" },
-              { name: "Overhaul", icon: "⚙️" },
-              { name: "Upgrade Systems", icon: "⬆️" },
-              { name: "Spare Parts", icon: "🔩" }
-            ].map((service, index) => (
-              <div key={index} className="bg-white rounded-lg shadow-md p-6 text-center hover:shadow-lg transition-shadow">
-                <div className="text-4xl mb-4">{service.icon}</div>
-                <h3 className="text-lg font-semibold text-gray-900">{service.name}</h3>
+            {afterSalesServices.map((service) => (
+              <div key={service.id} className="bg-white rounded-lg shadow-md p-6 text-center hover:shadow-lg transition-shadow">
+                {service.image_url ? (
+                  <div className="w-16 h-16 rounded-full flex items-center justify-center mx-auto mb-4 overflow-hidden">
+                    <img
+                      src={getImageUrl(service.image_url)}
+                      alt={service.title}
+                      className="w-full h-full object-cover"
+                    />
+                  </div>
+                ) : (
+                  <div className="text-4xl mb-4">🔧</div>
+                )}
+                <h3 className="text-lg font-semibold text-gray-900">{service.title}</h3>
+                {service.description && (
+                  <p className="text-sm text-gray-600 mt-2">{service.description}</p>
+                )}
               </div>
             ))}
           </div>
@@ -332,11 +326,23 @@ const Products = () => {
           </div>
 
           <div className="grid grid-cols-1 md:grid-cols-3 gap-8">
-            {applications.map((app, index) => (
-              <div key={index} className="bg-white rounded-lg shadow-md p-8 text-center">
-                <div className="text-6xl mb-4">{app.icon}</div>
-                <h3 className="text-2xl font-bold text-gray-900 mb-4">{app.name}</h3>
-                <p className="text-gray-600">{app.description}</p>
+            {industryApplications.map((app) => (
+              <div key={app.id} className="bg-white rounded-lg shadow-md p-8 text-center">
+                {app.image_url ? (
+                  <div className="w-24 h-24 rounded-full flex items-center justify-center mx-auto mb-4 overflow-hidden">
+                    <img
+                      src={getImageUrl(app.image_url)}
+                      alt={app.title}
+                      className="w-full h-full object-cover"
+                    />
+                  </div>
+                ) : (
+                  <div className="text-6xl mb-4">🔧</div>
+                )}
+                <h3 className="text-2xl font-bold text-gray-900 mb-4">{app.title}</h3>
+                {app.description && (
+                  <p className="text-gray-600">{app.description}</p>
+                )}
               </div>
             ))}
           </div>
@@ -356,9 +362,9 @@ const Products = () => {
             <a href="/contact#contact-form" className="btn-primary">
               Request Quote
             </a>
-            <a href="/contact" className="btn-secondary">
+            {/* <a href="/contact" className="btn-secondary">
               Download Brochure
-            </a>
+            </a> */}
           </div>
         </div>
       </section>

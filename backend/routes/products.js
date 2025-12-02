@@ -1,9 +1,9 @@
 const express = require('express')
 const router = express.Router()
 const pool = require('../db/pool')
-const { productQueries, categoryQueries, documentQueries } = require('../db/pool')
+const { productQueries, productImageQueries, categoryQueries, documentQueries } = require('../db/pool')
 const { authenticateToken, requireAdmin } = require('../middleware/auth')
-const { handleUpload, handleDocumentUpload, deleteFile, getFileUrl, getDocumentUrl, formatFileSize, getFileTypeIcon } = require('../middleware/upload')
+const { handleUpload, handleMultipleImageUpload, handleDocumentUpload, deleteFile, getFileUrl, getDocumentUrl, formatFileSize, getFileTypeIcon } = require('../middleware/upload')
 const { sendContactNotification } = require('../services/emailService')
 const { 
   contactRateLimit, 
@@ -88,9 +88,15 @@ router.get('/:model', async (req, res) => {
       })
     }
 
+    const product = result.rows[0]
+    
+    // Fetch images for the product
+    const imagesResult = await productImageQueries.getImagesByProductId(product.id)
+    product.images = imagesResult.rows
+
     res.json({
       success: true,
-      data: result.rows[0]
+      data: product
     })
   } catch (error) {
     console.error('Error fetching product:', error)
@@ -107,9 +113,21 @@ router.get('/:model', async (req, res) => {
 router.get('/admin/all', authenticateToken, requireAdmin, async (req, res) => {
   try {
     const result = await productQueries.getAllProductsAdmin()
+    
+    // Fetch images for each product
+    const productsWithImages = await Promise.all(
+      result.rows.map(async (product) => {
+        const imagesResult = await productImageQueries.getImagesByProductId(product.id)
+        return {
+          ...product,
+          images: imagesResult.rows
+        }
+      })
+    )
+    
     res.json({
       success: true,
-      data: result.rows
+      data: productsWithImages
     })
   } catch (error) {
     console.error('Error fetching all products:', error)
@@ -121,12 +139,16 @@ router.get('/admin/all', authenticateToken, requireAdmin, async (req, res) => {
 })
 
 // Create new product - Admin only
-router.post('/', authenticateToken, requireAdmin, handleUpload, async (req, res) => {
+router.post('/', authenticateToken, requireAdmin, handleMultipleImageUpload, async (req, res) => {
   try {
     const { model, name, short_brief, description, features, specs, published, category_id } = req.body
     
     // Validate required fields
     if (!model || !name || !category_id) {
+      // Clean up uploaded files if validation fails
+      if (req.files && req.files.length > 0) {
+        req.files.forEach(file => deleteFile(file.path))
+      }
       return res.status(400).json({
         success: false,
         message: 'Model, name, and category are required'
@@ -136,6 +158,10 @@ router.post('/', authenticateToken, requireAdmin, handleUpload, async (req, res)
     // Validate category exists
     const categoryResult = await categoryQueries.getCategoryById(category_id)
     if (categoryResult.rows.length === 0) {
+      // Clean up uploaded files if validation fails
+      if (req.files && req.files.length > 0) {
+        req.files.forEach(file => deleteFile(file.path))
+      }
       return res.status(400).json({
         success: false,
         message: 'Invalid category selected'
@@ -150,6 +176,10 @@ router.post('/', authenticateToken, requireAdmin, handleUpload, async (req, res)
       try {
         parsedFeatures = typeof features === 'string' ? JSON.parse(features) : features
       } catch (error) {
+        // Clean up uploaded files if validation fails
+        if (req.files && req.files.length > 0) {
+          req.files.forEach(file => deleteFile(file.path))
+        }
         return res.status(400).json({
           success: false,
           message: 'Invalid features format'
@@ -166,6 +196,10 @@ router.post('/', authenticateToken, requireAdmin, handleUpload, async (req, res)
           // Validate tabular specs
           const validation = validateTabularSpecs(parsedSpecs)
           if (!validation.valid) {
+            // Clean up uploaded files if validation fails
+            if (req.files && req.files.length > 0) {
+              req.files.forEach(file => deleteFile(file.path))
+            }
             return res.status(400).json({
               success: false,
               message: `Invalid tabular specs format: ${validation.error}`
@@ -187,6 +221,10 @@ router.post('/', authenticateToken, requireAdmin, handleUpload, async (req, res)
           }
         }
       } catch (error) {
+        // Clean up uploaded files if validation fails
+        if (req.files && req.files.length > 0) {
+          req.files.forEach(file => deleteFile(file.path))
+        }
         return res.status(400).json({
           success: false,
           message: 'Invalid specs format'
@@ -194,46 +232,63 @@ router.post('/', authenticateToken, requireAdmin, handleUpload, async (req, res)
       }
     }
 
-    // Handle image upload
-    let imageUrl = null
-    if (req.file) {
-      imageUrl = getFileUrl(req.file.filename)
-    }
-
     const productData = {
       model,
       name,
       short_brief: short_brief || null,
       description: description || null,
-      image_url: imageUrl,
       features: parsedFeatures,
       specs: parsedSpecs ? JSON.stringify(parsedSpecs) : null, // Convert to JSON string for JSONB
       category_id,
       published: published === 'true' || published === true
     }
 
-    // Debug logging
-    console.log('Product data being sent to database:', {
-      ...productData,
-      specs: parsedSpecs,
-      specsType: typeof parsedSpecs,
-      specsIsArray: Array.isArray(parsedSpecs),
-      specsStringified: JSON.stringify(parsedSpecs)
-    })
-
+    // Create product
     const result = await productQueries.createProduct(productData)
+    const productId = result.rows[0].id
+
+    // Handle multiple image uploads
+    if (req.files && req.files.length > 0) {
+      try {
+        for (let i = 0; i < req.files.length; i++) {
+          const file = req.files[i]
+          const imageUrl = getFileUrl(file.filename)
+          
+          await productImageQueries.createImage({
+            product_id: productId,
+            image_url: imageUrl,
+            display_order: i,
+            is_primary: i === 0 // First image is primary by default
+          })
+        }
+      } catch (imageError) {
+        console.error('Error creating product images:', imageError)
+        // Clean up uploaded files if image creation fails
+        req.files.forEach(file => deleteFile(file.path))
+        // Delete product if image creation fails
+        await productQueries.deleteProduct(productId)
+        throw imageError
+      }
+    }
+
+    // Fetch product with images
+    const productResult = await productQueries.getProductById(productId)
+    const imagesResult = await productImageQueries.getImagesByProductId(productId)
+    
+    const product = productResult.rows[0]
+    product.images = imagesResult.rows
     
     res.status(201).json({
       success: true,
-      data: result.rows[0],
+      data: product,
       message: 'Product created successfully'
     })
   } catch (error) {
     console.error('Error creating product:', error)
     
-    // Clean up uploaded file if database operation failed
-    if (req.file) {
-      deleteFile(req.file.path)
+    // Clean up uploaded files if database operation failed
+    if (req.files && req.files.length > 0) {
+      req.files.forEach(file => deleteFile(file.path))
     }
 
     if (error.code === '23505') { // Unique constraint violation
@@ -251,13 +306,17 @@ router.post('/', authenticateToken, requireAdmin, handleUpload, async (req, res)
 })
 
 // Update product - Admin only
-router.put('/:id', authenticateToken, requireAdmin, handleUpload, async (req, res) => {
+router.put('/:id', authenticateToken, requireAdmin, handleMultipleImageUpload, async (req, res) => {
   try {
     const { id } = req.params
     const { model, name, short_brief, description, features, specs, published, category_id } = req.body
 
     // Validate required fields
     if (!model || !name || !category_id) {
+      // Clean up uploaded files if validation fails
+      if (req.files && req.files.length > 0) {
+        req.files.forEach(file => deleteFile(file.path))
+      }
       return res.status(400).json({
         success: false,
         message: 'Model, name, and category are required'
@@ -267,15 +326,23 @@ router.put('/:id', authenticateToken, requireAdmin, handleUpload, async (req, re
     // Validate category exists
     const categoryResult = await categoryQueries.getCategoryById(category_id)
     if (categoryResult.rows.length === 0) {
+      // Clean up uploaded files if validation fails
+      if (req.files && req.files.length > 0) {
+        req.files.forEach(file => deleteFile(file.path))
+      }
       return res.status(400).json({
         success: false,
         message: 'Invalid category selected'
       })
     }
 
-    // Get existing product to check for image
+    // Get existing product
     const existingResult = await productQueries.getProductById(id)
     if (existingResult.rows.length === 0) {
+      // Clean up uploaded files if product not found
+      if (req.files && req.files.length > 0) {
+        req.files.forEach(file => deleteFile(file.path))
+      }
       return res.status(404).json({
         success: false,
         message: 'Product not found'
@@ -292,6 +359,10 @@ router.put('/:id', authenticateToken, requireAdmin, handleUpload, async (req, re
       try {
         parsedFeatures = typeof features === 'string' ? JSON.parse(features) : features
       } catch (error) {
+        // Clean up uploaded files if validation fails
+        if (req.files && req.files.length > 0) {
+          req.files.forEach(file => deleteFile(file.path))
+        }
         return res.status(400).json({
           success: false,
           message: 'Invalid features format'
@@ -308,6 +379,10 @@ router.put('/:id', authenticateToken, requireAdmin, handleUpload, async (req, re
           // Validate tabular specs
           const validation = validateTabularSpecs(parsedSpecs)
           if (!validation.valid) {
+            // Clean up uploaded files if validation fails
+            if (req.files && req.files.length > 0) {
+              req.files.forEach(file => deleteFile(file.path))
+            }
             return res.status(400).json({
               success: false,
               message: `Invalid tabular specs format: ${validation.error}`
@@ -329,6 +404,10 @@ router.put('/:id', authenticateToken, requireAdmin, handleUpload, async (req, re
           }
         }
       } catch (error) {
+        // Clean up uploaded files if validation fails
+        if (req.files && req.files.length > 0) {
+          req.files.forEach(file => deleteFile(file.path))
+        }
         return res.status(400).json({
           success: false,
           message: 'Invalid specs format'
@@ -336,51 +415,66 @@ router.put('/:id', authenticateToken, requireAdmin, handleUpload, async (req, re
       }
     }
 
-    // Handle image upload
-    let imageUrl = existingProduct.image_url
-    if (req.file) {
-      // Delete old image if it exists
-      if (existingProduct.image_url) {
-        const oldImagePath = existingProduct.image_url.replace('/uploads/products/', '')
-        deleteFile(require('path').join(__dirname, '../uploads/products', oldImagePath))
-      }
-      imageUrl = getFileUrl(req.file.filename)
-    }
-
     const productData = {
       model,
       name,
       short_brief: short_brief || null,
       description: description || null,
-      image_url: imageUrl,
       features: parsedFeatures,
       specs: parsedSpecs ? JSON.stringify(parsedSpecs) : null, // Convert to JSON string for JSONB
       category_id,
       published: published === 'true' || published === true
     }
 
-    // Debug logging
-    console.log('Product data being sent to database:', {
-      ...productData,
-      specs: parsedSpecs,
-      specsType: typeof parsedSpecs,
-      specsIsArray: Array.isArray(parsedSpecs),
-      specsStringified: JSON.stringify(parsedSpecs)
-    })
-
+    // Update product
     const result = await productQueries.updateProduct(id, productData)
+
+    // Handle multiple image uploads (add new images)
+    if (req.files && req.files.length > 0) {
+      try {
+        // Get existing images to determine next display_order
+        const existingImages = await productImageQueries.getImagesByProductId(id)
+        const nextOrder = existingImages.rows.length > 0 
+          ? Math.max(...existingImages.rows.map(img => img.display_order)) + 1 
+          : 0
+
+        for (let i = 0; i < req.files.length; i++) {
+          const file = req.files[i]
+          const imageUrl = getFileUrl(file.filename)
+          
+          await productImageQueries.createImage({
+            product_id: id,
+            image_url: imageUrl,
+            display_order: nextOrder + i,
+            is_primary: false // Don't auto-set as primary on update
+          })
+        }
+      } catch (imageError) {
+        console.error('Error adding product images:', imageError)
+        // Clean up uploaded files if image creation fails
+        req.files.forEach(file => deleteFile(file.path))
+        throw imageError
+      }
+    }
+
+    // Fetch product with images
+    const productResult = await productQueries.getProductById(id)
+    const imagesResult = await productImageQueries.getImagesByProductId(id)
+    
+    const product = productResult.rows[0]
+    product.images = imagesResult.rows
     
     res.json({
       success: true,
-      data: result.rows[0],
+      data: product,
       message: 'Product updated successfully'
     })
   } catch (error) {
     console.error('Error updating product:', error)
     
-    // Clean up uploaded file if database operation failed
-    if (req.file) {
-      deleteFile(req.file.path)
+    // Clean up uploaded files if database operation failed
+    if (req.files && req.files.length > 0) {
+      req.files.forEach(file => deleteFile(file.path))
     }
 
     if (error.code === '23505') { // Unique constraint violation
@@ -402,7 +496,7 @@ router.delete('/:id', authenticateToken, requireAdmin, async (req, res) => {
   try {
     const { id } = req.params
 
-    // Get product to check for image
+    // Get product to check for images
     const existingResult = await productQueries.getProductById(id)
     if (existingResult.rows.length === 0) {
       return res.status(404).json({
@@ -411,16 +505,19 @@ router.delete('/:id', authenticateToken, requireAdmin, async (req, res) => {
       })
     }
 
-    const product = existingResult.rows[0]
+    // Get all images for the product
+    const imagesResult = await productImageQueries.getImagesByProductId(id)
+    
+    // Delete associated image files
+    imagesResult.rows.forEach(image => {
+      if (image.image_url) {
+        const imagePath = image.image_url.replace('/uploads/products/', '')
+        deleteFile(require('path').join(__dirname, '../uploads/products', imagePath))
+      }
+    })
 
-    // Delete product from database
+    // Delete product from database (cascade will delete images from product_images table)
     await productQueries.deleteProduct(id)
-
-    // Delete associated image file
-    if (product.image_url) {
-      const imagePath = product.image_url.replace('/uploads/products/', '')
-      deleteFile(require('path').join(__dirname, '../uploads/products', imagePath))
-    }
 
     res.json({
       success: true,
@@ -458,6 +555,228 @@ router.patch('/:id/publish', authenticateToken, requireAdmin, async (req, res) =
     res.status(500).json({
       success: false,
       message: 'Failed to update publish status'
+    })
+  }
+})
+
+// Product image management routes
+
+// Upload additional images for a product - Admin only
+router.post('/:productId/images', authenticateToken, requireAdmin, handleMultipleImageUpload, async (req, res) => {
+  try {
+    const { productId } = req.params
+
+    // Check if product exists
+    const productResult = await productQueries.getProductById(productId)
+    if (productResult.rows.length === 0) {
+      // Clean up uploaded files if product not found
+      if (req.files && req.files.length > 0) {
+        req.files.forEach(file => deleteFile(file.path))
+      }
+      return res.status(404).json({
+        success: false,
+        message: 'Product not found'
+      })
+    }
+
+    if (!req.files || req.files.length === 0) {
+      return res.status(400).json({
+        success: false,
+        message: 'No images uploaded'
+      })
+    }
+
+    // Get existing images to determine next display_order
+    const existingImages = await productImageQueries.getImagesByProductId(productId)
+    const nextOrder = existingImages.rows.length > 0 
+      ? Math.max(...existingImages.rows.map(img => img.display_order)) + 1 
+      : 0
+
+    const uploadedImages = []
+    try {
+      for (let i = 0; i < req.files.length; i++) {
+        const file = req.files[i]
+        const imageUrl = getFileUrl(file.filename)
+        
+        const imageResult = await productImageQueries.createImage({
+          product_id: productId,
+          image_url: imageUrl,
+          display_order: nextOrder + i,
+          is_primary: false
+        })
+        
+        uploadedImages.push(imageResult.rows[0])
+      }
+    } catch (imageError) {
+      console.error('Error creating product images:', imageError)
+      // Clean up uploaded files if image creation fails
+      req.files.forEach(file => deleteFile(file.path))
+      throw imageError
+    }
+
+    res.status(201).json({
+      success: true,
+      data: uploadedImages,
+      message: 'Images uploaded successfully'
+    })
+  } catch (error) {
+    console.error('Error uploading images:', error)
+    res.status(500).json({
+      success: false,
+      message: 'Failed to upload images'
+    })
+  }
+})
+
+// Delete an image - Admin only
+router.delete('/:productId/images/:imageId', authenticateToken, requireAdmin, async (req, res) => {
+  try {
+    const { productId, imageId } = req.params
+
+    // Check if product exists
+    const productResult = await productQueries.getProductById(productId)
+    if (productResult.rows.length === 0) {
+      return res.status(404).json({
+        success: false,
+        message: 'Product not found'
+      })
+    }
+
+    // Get image to check if it exists and belongs to product
+    const imageResult = await productImageQueries.getImageById(imageId)
+    if (imageResult.rows.length === 0) {
+      return res.status(404).json({
+        success: false,
+        message: 'Image not found'
+      })
+    }
+
+    const image = imageResult.rows[0]
+    if (image.product_id !== productId) {
+      return res.status(400).json({
+        success: false,
+        message: 'Image does not belong to this product'
+      })
+    }
+
+    // Delete image file
+    if (image.image_url) {
+      const imagePath = image.image_url.replace('/uploads/products/', '')
+      deleteFile(require('path').join(__dirname, '../uploads/products', imagePath))
+    }
+
+    // Delete image from database
+    await productImageQueries.deleteImage(imageId)
+
+    res.json({
+      success: true,
+      message: 'Image deleted successfully'
+    })
+  } catch (error) {
+    console.error('Error deleting image:', error)
+    res.status(500).json({
+      success: false,
+      message: 'Failed to delete image'
+    })
+  }
+})
+
+// Set image as primary - Admin only
+router.patch('/:productId/images/:imageId/primary', authenticateToken, requireAdmin, async (req, res) => {
+  try {
+    const { productId, imageId } = req.params
+
+    // Check if product exists
+    const productResult = await productQueries.getProductById(productId)
+    if (productResult.rows.length === 0) {
+      return res.status(404).json({
+        success: false,
+        message: 'Product not found'
+      })
+    }
+
+    // Get image to check if it exists and belongs to product
+    const imageResult = await productImageQueries.getImageById(imageId)
+    if (imageResult.rows.length === 0) {
+      return res.status(404).json({
+        success: false,
+        message: 'Image not found'
+      })
+    }
+
+    const image = imageResult.rows[0]
+    if (image.product_id !== productId) {
+      return res.status(400).json({
+        success: false,
+        message: 'Image does not belong to this product'
+      })
+    }
+
+    // Set image as primary (this will unset others)
+    const result = await productImageQueries.setPrimaryImage(productId, imageId)
+
+    res.json({
+      success: true,
+      data: result.rows[0],
+      message: 'Primary image updated successfully'
+    })
+  } catch (error) {
+    console.error('Error setting primary image:', error)
+    res.status(500).json({
+      success: false,
+      message: 'Failed to set primary image'
+    })
+  }
+})
+
+// Reorder images - Admin only
+router.patch('/:productId/images/reorder', authenticateToken, requireAdmin, async (req, res) => {
+  try {
+    const { productId } = req.params
+    const { imageOrders } = req.body // Array of {id, display_order}
+
+    // Check if product exists
+    const productResult = await productQueries.getProductById(productId)
+    if (productResult.rows.length === 0) {
+      return res.status(404).json({
+        success: false,
+        message: 'Product not found'
+      })
+    }
+
+    if (!Array.isArray(imageOrders) || imageOrders.length === 0) {
+      return res.status(400).json({
+        success: false,
+        message: 'imageOrders must be a non-empty array'
+      })
+    }
+
+    // Validate all images belong to the product
+    const existingImages = await productImageQueries.getImagesByProductId(productId)
+    const existingImageIds = new Set(existingImages.rows.map(img => img.id))
+    
+    for (const order of imageOrders) {
+      if (!existingImageIds.has(order.id)) {
+        return res.status(400).json({
+          success: false,
+          message: `Image ${order.id} does not belong to this product`
+        })
+      }
+    }
+
+    // Reorder images
+    const result = await productImageQueries.reorderImages(productId, imageOrders)
+
+    res.json({
+      success: true,
+      data: result.rows,
+      message: 'Images reordered successfully'
+    })
+  } catch (error) {
+    console.error('Error reordering images:', error)
+    res.status(500).json({
+      success: false,
+      message: 'Failed to reorder images'
     })
   }
 })

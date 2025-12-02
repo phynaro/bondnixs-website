@@ -149,9 +149,11 @@ export const productAPI = {
     formData.append('features', JSON.stringify(productData.features || []))
     formData.append('specs', JSON.stringify(productData.specs || []))
     
-    // Add image if provided
-    if (productData.image) {
-      formData.append('image', productData.image)
+    // Add multiple images if provided
+    if (productData.images && productData.images.length > 0) {
+      productData.images.forEach(image => {
+        formData.append('images', image)
+      })
     }
     
     return api.post(getApiPath('/api/products'), formData, {
@@ -176,9 +178,11 @@ export const productAPI = {
     formData.append('features', JSON.stringify(productData.features || []))
     formData.append('specs', JSON.stringify(productData.specs || []))
     
-    // Add image if provided
-    if (productData.image) {
-      formData.append('image', productData.image)
+    // Add multiple images if provided (new images to add)
+    if (productData.images && productData.images.length > 0) {
+      productData.images.forEach(image => {
+        formData.append('images', image)
+      })
     }
     
     return api.put(getApiPath(`/api/products/${id}`), formData, {
@@ -191,6 +195,37 @@ export const productAPI = {
   deleteProduct: (id) => api.delete(getApiPath(`/api/products/${id}`)),
   
   togglePublish: (id) => api.patch(getApiPath(`/api/products/${id}/publish`))
+}
+
+// Product Image API functions
+export const productImageAPI = {
+  // Upload multiple images for a product
+  uploadImages: (productId, images) => {
+    const formData = new FormData()
+    
+    // Add multiple images
+    images.forEach(image => {
+      formData.append('images', image)
+    })
+    
+    return api.post(getApiPath(`/api/products/${productId}/images`), formData, {
+      headers: {
+        'Content-Type': 'multipart/form-data'
+      }
+    })
+  },
+  
+  // Delete an image
+  deleteImage: (productId, imageId) => 
+    api.delete(getApiPath(`/api/products/${productId}/images/${imageId}`)),
+  
+  // Set image as primary
+  setPrimaryImage: (productId, imageId) => 
+    api.patch(getApiPath(`/api/products/${productId}/images/${imageId}/primary`)),
+  
+  // Reorder images
+  reorderImages: (productId, imageOrders) => 
+    api.patch(getApiPath(`/api/products/${productId}/images/reorder`), { imageOrders })
 }
 
 // Document API functions
@@ -348,6 +383,301 @@ export const fileStorageAPI = {
   
   // Get file activities
   getFileActivities: (id) => api.get(getApiPath(`/api/files/${id}/activities`))
+}
+
+// Home Content API functions
+export const homeContentAPI = {
+  // Public APIs
+  getContent: () => api.get(getApiPath('/api/home-content')),
+  
+  getContentByType: (sectionType) => api.get(getApiPath(`/api/home-content/type/${sectionType}`)),
+  
+  // Admin APIs
+  getAllContentAdmin: () => api.get(getApiPath('/api/home-content/admin/all')),
+  
+  createContent: (contentData) => {
+    const formData = new FormData()
+    
+    // Add text fields
+    formData.append('section_type', contentData.section_type)
+    formData.append('title', contentData.title || '')
+    formData.append('subtitle', contentData.subtitle || '')
+    formData.append('description', contentData.description || '')
+    formData.append('display_order', contentData.display_order || 0)
+    formData.append('published', contentData.published)
+    
+    // Add JSON fields
+    if (contentData.content) {
+      formData.append('content', JSON.stringify(contentData.content))
+    }
+    
+    // Add image if provided
+    if (contentData.image) {
+      formData.append('image', contentData.image)
+    }
+    
+    return api.post(getApiPath('/api/home-content'), formData, {
+      headers: {
+        'Content-Type': 'multipart/form-data'
+      }
+    })
+  },
+  
+  updateContent: (id, contentData) => {
+    const formData = new FormData()
+    
+    // Add text fields
+    formData.append('section_type', contentData.section_type)
+    formData.append('title', contentData.title || '')
+    formData.append('subtitle', contentData.subtitle || '')
+    formData.append('description', contentData.description || '')
+    formData.append('display_order', contentData.display_order || 0)
+    formData.append('published', contentData.published)
+    
+    // Add JSON fields
+    if (contentData.content) {
+      formData.append('content', JSON.stringify(contentData.content))
+    }
+    
+    // Add image if provided
+    if (contentData.image) {
+      formData.append('image', contentData.image)
+    }
+    
+    return api.put(getApiPath(`/api/home-content/${id}`), formData, {
+      headers: {
+        'Content-Type': 'multipart/form-data'
+      }
+    })
+  },
+  
+  deleteContent: (id) => api.delete(getApiPath(`/api/home-content/${id}`)),
+  
+  togglePublish: (id) => api.patch(getApiPath(`/api/home-content/${id}/publish`))
+}
+
+// Solutions Content API functions
+export const solutionsContentAPI = {
+  // Public APIs
+  getContent: () => api.get(getApiPath('/api/solutions-content')),
+  
+  getContentByType: (contentType) => api.get(getApiPath(`/api/solutions-content/type/${contentType}`)),
+  
+  // Admin APIs
+  getAllContentAdmin: () => api.get(getApiPath('/api/solutions-content/admin/all')),
+  
+  createContent: (contentData) => {
+    const formData = new FormData()
+    
+    // Add text fields
+    formData.append('content_type', contentData.content_type)
+    formData.append('title', contentData.title || '')
+    formData.append('description', contentData.description || '')
+    formData.append('display_order', contentData.display_order || 0)
+    formData.append('published', contentData.published)
+    
+    // Add JSON fields
+    if (contentData.content) {
+      formData.append('content', JSON.stringify(contentData.content))
+    }
+    
+    // Add image if provided
+    if (contentData.image) {
+      formData.append('image', contentData.image)
+    }
+    
+    return api.post(getApiPath('/api/solutions-content'), formData, {
+      headers: {
+        'Content-Type': 'multipart/form-data'
+      }
+    })
+  },
+  
+  updateContent: (id, contentData) => {
+    const formData = new FormData()
+    
+    // Add text fields
+    formData.append('content_type', contentData.content_type)
+    formData.append('title', contentData.title || '')
+    formData.append('description', contentData.description || '')
+    formData.append('display_order', contentData.display_order || 0)
+    formData.append('published', contentData.published)
+    
+    // Add JSON fields
+    if (contentData.content) {
+      formData.append('content', JSON.stringify(contentData.content))
+    }
+    
+    // Add image if provided
+    if (contentData.image) {
+      formData.append('image', contentData.image)
+    }
+    
+    return api.put(getApiPath(`/api/solutions-content/${id}`), formData, {
+      headers: {
+        'Content-Type': 'multipart/form-data'
+      }
+    })
+  },
+  
+  deleteContent: (id) => api.delete(getApiPath(`/api/solutions-content/${id}`)),
+  
+  togglePublish: (id) => api.patch(getApiPath(`/api/solutions-content/${id}/publish`))
+}
+
+// Products Content API functions
+export const productsContentAPI = {
+  // Public APIs
+  getContent: () => api.get(getApiPath('/api/products-content')),
+  
+  getContentByType: (sectionType) => api.get(getApiPath(`/api/products-content/type/${sectionType}`)),
+  
+  // Admin APIs
+  getAllContentAdmin: () => api.get(getApiPath('/api/products-content/admin/all')),
+  
+  createContent: (contentData) => {
+    const formData = new FormData()
+    
+    // Add text fields
+    formData.append('section_type', contentData.section_type)
+    formData.append('title', contentData.title || '')
+    formData.append('description', contentData.description || '')
+    formData.append('display_order', contentData.display_order || 0)
+    formData.append('published', contentData.published)
+    
+    // Add JSON fields
+    if (contentData.content) {
+      formData.append('content', JSON.stringify(contentData.content))
+    }
+    
+    // Add image if provided
+    if (contentData.image) {
+      formData.append('image', contentData.image)
+    }
+    
+    return api.post(getApiPath('/api/products-content'), formData, {
+      headers: {
+        'Content-Type': 'multipart/form-data'
+      }
+    })
+  },
+  
+  updateContent: (id, contentData) => {
+    const formData = new FormData()
+    
+    // Add text fields
+    formData.append('section_type', contentData.section_type)
+    formData.append('title', contentData.title || '')
+    formData.append('description', contentData.description || '')
+    formData.append('display_order', contentData.display_order || 0)
+    formData.append('published', contentData.published)
+    
+    // Add JSON fields
+    if (contentData.content) {
+      formData.append('content', JSON.stringify(contentData.content))
+    }
+    
+    // Add image if provided
+    if (contentData.image) {
+      formData.append('image', contentData.image)
+    }
+    
+    return api.put(getApiPath(`/api/products-content/${id}`), formData, {
+      headers: {
+        'Content-Type': 'multipart/form-data'
+      }
+    })
+  },
+  
+  deleteContent: (id) => api.delete(getApiPath(`/api/products-content/${id}`)),
+  
+  togglePublish: (id) => api.patch(getApiPath(`/api/products-content/${id}/publish`))
+}
+
+// About Content API functions
+export const aboutContentAPI = {
+  // Public APIs
+  getContent: () => api.get(getApiPath('/api/about-content')),
+  
+  getContentByType: (sectionType) => api.get(getApiPath(`/api/about-content/type/${sectionType}`)),
+  
+  // Admin APIs
+  getAllContentAdmin: () => api.get(getApiPath('/api/about-content/admin/all')),
+  
+  createContent: (contentData) => {
+    const formData = new FormData()
+    
+    // Add text fields
+    formData.append('section_type', contentData.section_type)
+    formData.append('title', contentData.title || '')
+    formData.append('description', contentData.description || '')
+    formData.append('display_order', contentData.display_order || 0)
+    formData.append('published', contentData.published)
+    
+    // Add JSON fields
+    if (contentData.content) {
+      formData.append('content', JSON.stringify(contentData.content))
+    }
+    
+    // Add image if provided
+    if (contentData.image) {
+      formData.append('image', contentData.image)
+    }
+    
+    return api.post(getApiPath('/api/about-content'), formData, {
+      headers: {
+        'Content-Type': 'multipart/form-data'
+      }
+    })
+  },
+  
+  updateContent: (id, contentData) => {
+    const formData = new FormData()
+    
+    // Add text fields
+    formData.append('section_type', contentData.section_type)
+    formData.append('title', contentData.title || '')
+    formData.append('description', contentData.description || '')
+    formData.append('display_order', contentData.display_order || 0)
+    formData.append('published', contentData.published)
+    
+    // Add JSON fields
+    if (contentData.content) {
+      formData.append('content', JSON.stringify(contentData.content))
+    }
+    
+    // Add image if provided
+    if (contentData.image) {
+      formData.append('image', contentData.image)
+    }
+    
+    return api.put(getApiPath(`/api/about-content/${id}`), formData, {
+      headers: {
+        'Content-Type': 'multipart/form-data'
+      }
+    })
+  },
+  
+  deleteContent: (id) => api.delete(getApiPath(`/api/about-content/${id}`)),
+  
+  togglePublish: (id) => api.patch(getApiPath(`/api/about-content/${id}/publish`))
+}
+
+// Contact FAQ API functions
+export const contactFaqAPI = {
+  // Public APIs
+  getFaqs: () => api.get(getApiPath('/api/contact-faq')),
+  
+  // Admin APIs
+  getAllFaqsAdmin: () => api.get(getApiPath('/api/contact-faq/admin/all')),
+  
+  createFaq: (faqData) => api.post(getApiPath('/api/contact-faq'), faqData),
+  
+  updateFaq: (id, faqData) => api.put(getApiPath(`/api/contact-faq/${id}`), faqData),
+  
+  deleteFaq: (id) => api.delete(getApiPath(`/api/contact-faq/${id}`)),
+  
+  togglePublish: (id) => api.patch(getApiPath(`/api/contact-faq/${id}/publish`))
 }
 
 export default api

@@ -1,7 +1,7 @@
 import { useAuth } from '../../hooks/useAuth'
 import { Link, useLocation } from 'react-router-dom'
 import { useState } from 'react'
-import { LayoutDashboard, Package, FolderTree, Mail, Users, FolderOpen } from 'lucide-react'
+import { LayoutDashboard, Package, FolderTree, Mail, Users, FolderOpen, FileText, Briefcase, Info, HelpCircle } from 'lucide-react'
 
 const AdminLayout = ({ children }) => {
   const { user, logout } = useAuth()
@@ -12,6 +12,11 @@ const AdminLayout = ({ children }) => {
     { name: 'Dashboard', href: '/admin', icon: LayoutDashboard },
     { name: 'Products', href: '/admin/products', icon: Package },
     { name: 'Categories', href: '/admin/categories', icon: FolderTree },
+    { name: 'Home Content', href: '/admin/home-content', icon: FileText },
+    { name: 'Solutions Content', href: '/admin/solutions-content', icon: Briefcase },
+    { name: 'About Content', href: '/admin/about-content', icon: Info },
+    { name: 'Products Content', href: '/admin/products-content', icon: Package },
+    { name: 'Contact FAQ', href: '/admin/faq', icon: HelpCircle },
     { name: 'Messages', href: '/admin/messages', icon: Mail },
     { name: 'Recipients', href: '/admin/recipients', icon: Users },
     { name: 'File Storage', href: '/admin/files', icon: FolderOpen }
@@ -21,7 +26,11 @@ const AdminLayout = ({ children }) => {
     if (path === '/admin') {
       return location.pathname === '/admin'
     }
-    return location.pathname.startsWith(path)
+    // Check for exact match or path followed by / (for sub-routes)
+    // This prevents /admin/products from matching /admin/products-content
+    const exactMatch = location.pathname === path
+    const isSubRoute = location.pathname.startsWith(path + '/')
+    return exactMatch || isSubRoute
   }
 
   const toggleMobileMenu = () => {

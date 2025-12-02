@@ -192,10 +192,10 @@ const ProductList = () => {
                     <tr key={product.id} className="hover:bg-gray-50">
                       <td className="px-6 py-4 whitespace-nowrap">
                         <div className="flex items-center">
-                          {product.image_url ? (
+                          {product.primary_image_url ? (
                             <img
                               className="h-10 w-10 rounded-lg object-cover mr-4"
-                              src={getImageUrl(product.image_url)}
+                              src={getImageUrl(product.primary_image_url)}
                               alt={product.name}
                             />
                           ) : (
@@ -210,6 +210,29 @@ const ProductList = () => {
                             {product.short_brief && (
                               <div className="text-sm text-gray-500">
                                 {product.short_brief}
+                              </div>
+                            )}
+                            {product.images && product.images.length > 0 && (
+                              <div className="flex items-center gap-1 mt-1">
+                                <span className="text-xs text-gray-400">
+                                  {product.images.length} image{product.images.length !== 1 ? 's' : ''}
+                                </span>
+                                <div className="flex -space-x-1 ml-2">
+                                  {product.images.slice(0, 3).map((img, idx) => (
+                                    <img
+                                      key={img.id}
+                                      src={getImageUrl(img.image_url)}
+                                      alt={`${product.name} ${idx + 1}`}
+                                      className="h-6 w-6 rounded border border-white object-cover"
+                                      title={img.is_primary ? 'Primary' : ''}
+                                    />
+                                  ))}
+                                  {product.images.length > 3 && (
+                                    <div className="h-6 w-6 rounded border border-white bg-gray-200 flex items-center justify-center text-xs text-gray-600">
+                                      +{product.images.length - 3}
+                                    </div>
+                                  )}
+                                </div>
                               </div>
                             )}
                           </div>
@@ -277,10 +300,10 @@ const ProductList = () => {
                     {/* Product Header */}
                     <div className="flex items-start justify-between mb-3">
                       <div className="flex items-center flex-1">
-                        {product.image_url ? (
+                        {product.primary_image_url ? (
                           <img
                             className="h-12 w-12 rounded-lg object-cover mr-3"
-                            src={getImageUrl(product.image_url)}
+                            src={getImageUrl(product.primary_image_url)}
                             alt={product.name}
                           />
                         ) : (
@@ -295,6 +318,29 @@ const ProductList = () => {
                           <p className="text-xs text-gray-500 truncate">
                             {product.model}
                           </p>
+                          {product.images && product.images.length > 0 && (
+                            <div className="flex items-center gap-1 mt-1">
+                              <span className="text-xs text-gray-400">
+                                {product.images.length} image{product.images.length !== 1 ? 's' : ''}
+                              </span>
+                              <div className="flex -space-x-1 ml-2">
+                                {product.images.slice(0, 3).map((img, idx) => (
+                                  <img
+                                    key={img.id}
+                                    src={getImageUrl(img.image_url)}
+                                    alt={`${product.name} ${idx + 1}`}
+                                    className="h-5 w-5 rounded border border-white object-cover"
+                                    title={img.is_primary ? 'Primary' : ''}
+                                  />
+                                ))}
+                                {product.images.length > 3 && (
+                                  <div className="h-5 w-5 rounded border border-white bg-gray-200 flex items-center justify-center text-xs text-gray-600">
+                                    +{product.images.length - 3}
+                                  </div>
+                                )}
+                              </div>
+                            </div>
+                          )}
                         </div>
                       </div>
                       <button

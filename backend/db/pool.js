@@ -115,19 +115,21 @@ const categoryQueries = {
 
 // Product-specific query functions
 const productQueries = {
-  // Get all published products with category info
+  // Get all published products with category info and primary image
   getAllProducts: () => query(`
     SELECT 
-      p.id, p.model, p.name, p.short_brief, p.description, p.image_url, 
+      p.id, p.model, p.name, p.short_brief, p.description, 
       p.features, p.specs, p.published, p.created_at, p.updated_at,
-      c.id as category_id, c.name as category_name, c.description as category_description
+      c.id as category_id, c.name as category_name, c.description as category_description,
+      pi.image_url as primary_image_url
     FROM product p
     JOIN category c ON p.category_id = c.id
+    LEFT JOIN product_images pi ON p.id = pi.product_id AND pi.is_primary = TRUE
     WHERE p.published = true 
     ORDER BY c.display_order ASC, p.created_at DESC
   `),
 
-  // Get product by model with category info
+  // Get product by model with category info and all images
   getProductByModel: (model) => query(`
     SELECT 
       p.*,
@@ -137,7 +139,7 @@ const productQueries = {
     WHERE p.model = $1
   `, [model]),
 
-  // Get product by ID with category info
+  // Get product by ID with category info and all images
   getProductById: (id) => query(`
     SELECT 
       p.*,
@@ -150,10 +152,11 @@ const productQueries = {
   // Get all products (including unpublished) - for admin
   getAllProductsAdmin: () => query(`
     SELECT 
-      p.id, p.model, p.name, p.short_brief, p.description, p.image_url, 
+      p.id, p.model, p.name, p.short_brief, p.description, 
       p.features, p.specs, p.published, p.created_at, p.updated_at,
       c.id as category_id, c.name as category_name, c.description as category_description,
-      COALESCE(doc_counts.document_count, 0) as document_count
+      COALESCE(doc_counts.document_count, 0) as document_count,
+      pi.image_url as primary_image_url
     FROM product p
     JOIN category c ON p.category_id = c.id
     LEFT JOIN (
@@ -161,20 +164,20 @@ const productQueries = {
       FROM product_documents
       GROUP BY product_id
     ) doc_counts ON p.id = doc_counts.product_id
+    LEFT JOIN product_images pi ON p.id = pi.product_id AND pi.is_primary = TRUE
     ORDER BY c.display_order ASC, p.created_at DESC
   `),
 
   // Create new product
   createProduct: (productData) => query(`
-    INSERT INTO product (model, name, short_brief, description, image_url, features, specs, category_id, published)
-    VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9)
+    INSERT INTO product (model, name, short_brief, description, features, specs, category_id, published)
+    VALUES ($1, $2, $3, $4, $5, $6, $7, $8)
     RETURNING *
   `, [
     productData.model,
     productData.name,
     productData.short_brief,
     productData.description,
-    productData.image_url,
     productData.features,
     productData.specs,
     productData.category_id,
@@ -184,8 +187,8 @@ const productQueries = {
   // Update product
   updateProduct: (id, productData) => query(`
     UPDATE product 
-    SET model = $2, name = $3, short_brief = $4, description = $5, image_url = $6, 
-        features = $7, specs = $8, category_id = $9, published = $10, updated_at = now()
+    SET model = $2, name = $3, short_brief = $4, description = $5, 
+        features = $6, specs = $7, category_id = $8, published = $9, updated_at = now()
     WHERE id = $1
     RETURNING *
   `, [
@@ -194,7 +197,6 @@ const productQueries = {
     productData.name,
     productData.short_brief,
     productData.description,
-    productData.image_url,
     productData.features,
     productData.specs,
     productData.category_id,
@@ -370,11 +372,471 @@ const fileStorageQueries = {
   }
 }
 
+// Home content query functions
+const homeContentQueries = {
+  // Get all published home content
+  getAllContent: () => query(`
+    SELECT * FROM home_content 
+    WHERE published = true 
+    ORDER BY display_order ASC, created_at DESC
+  `),
+
+  // Get content by section type (published only)
+  getContentByType: (sectionType) => query(`
+    SELECT * FROM home_content 
+    WHERE section_type = $1 AND published = true 
+    ORDER BY display_order ASC, created_at DESC
+  `, [sectionType]),
+
+  // Get all content (including unpublished) - for admin
+  getAllContentAdmin: () => query(`
+    SELECT * FROM home_content 
+    ORDER BY section_type ASC, display_order ASC, created_at DESC
+  `),
+
+  // Get content by ID
+  getContentById: (id) => query(`
+    SELECT * FROM home_content WHERE id = $1
+  `, [id]),
+
+  // Create new content
+  createContent: (contentData) => query(`
+    INSERT INTO home_content (section_type, title, subtitle, description, image_url, content, display_order, published)
+    VALUES ($1, $2, $3, $4, $5, $6, $7, $8)
+    RETURNING *
+  `, [
+    contentData.section_type,
+    contentData.title || null,
+    contentData.subtitle || null,
+    contentData.description || null,
+    contentData.image_url || null,
+    contentData.content ? JSON.stringify(contentData.content) : null,
+    contentData.display_order || 0,
+    contentData.published !== undefined ? contentData.published : true
+  ]),
+
+  // Update content
+  updateContent: (id, contentData) => query(`
+    UPDATE home_content 
+    SET section_type = $2, title = $3, subtitle = $4, description = $5, image_url = $6,
+        content = $7, display_order = $8, published = $9, updated_at = now()
+    WHERE id = $1
+    RETURNING *
+  `, [
+    id,
+    contentData.section_type,
+    contentData.title || null,
+    contentData.subtitle || null,
+    contentData.description || null,
+    contentData.image_url || null,
+    contentData.content ? JSON.stringify(contentData.content) : null,
+    contentData.display_order || 0,
+    contentData.published !== undefined ? contentData.published : true
+  ]),
+
+  // Delete content
+  deleteContent: (id) => query(`
+    DELETE FROM home_content WHERE id = $1
+  `, [id]),
+
+  // Toggle publish status
+  togglePublish: (id) => query(`
+    UPDATE home_content 
+    SET published = NOT published, updated_at = now()
+    WHERE id = $1
+    RETURNING *
+  `, [id])
+}
+
+// Solutions content query functions
+const solutionsContentQueries = {
+  // Get all published solutions content
+  getAllContent: () => query(`
+    SELECT * FROM solutions_content 
+    WHERE published = true 
+    ORDER BY display_order ASC, created_at DESC
+  `),
+
+  // Get content by type (published only)
+  getContentByType: (contentType) => query(`
+    SELECT * FROM solutions_content 
+    WHERE content_type = $1 AND published = true 
+    ORDER BY display_order ASC, created_at DESC
+  `, [contentType]),
+
+  // Get all content (including unpublished) - for admin
+  getAllContentAdmin: () => query(`
+    SELECT * FROM solutions_content 
+    ORDER BY content_type ASC, display_order ASC, created_at DESC
+  `),
+
+  // Get content by ID
+  getContentById: (id) => query(`
+    SELECT * FROM solutions_content WHERE id = $1
+  `, [id]),
+
+  // Create new content
+  createContent: (contentData) => query(`
+    INSERT INTO solutions_content (content_type, title, description, image_url, content, display_order, published)
+    VALUES ($1, $2, $3, $4, $5, $6, $7)
+    RETURNING *
+  `, [
+    contentData.content_type,
+    contentData.title || null,
+    contentData.description || null,
+    contentData.image_url || null,
+    contentData.content ? JSON.stringify(contentData.content) : null,
+    contentData.display_order || 0,
+    contentData.published !== undefined ? contentData.published : true
+  ]),
+
+  // Update content
+  updateContent: (id, contentData) => query(`
+    UPDATE solutions_content 
+    SET content_type = $2, title = $3, description = $4, image_url = $5, 
+        content = $6, display_order = $7, published = $8, updated_at = now()
+    WHERE id = $1
+    RETURNING *
+  `, [
+    id,
+    contentData.content_type,
+    contentData.title || null,
+    contentData.description || null,
+    contentData.image_url || null,
+    contentData.content ? JSON.stringify(contentData.content) : null,
+    contentData.display_order || 0,
+    contentData.published !== undefined ? contentData.published : true
+  ]),
+
+  // Delete content
+  deleteContent: (id) => query(`
+    DELETE FROM solutions_content WHERE id = $1
+  `, [id]),
+
+  // Toggle publish status
+  togglePublish: (id) => query(`
+    UPDATE solutions_content 
+    SET published = NOT published, updated_at = now()
+    WHERE id = $1
+    RETURNING *
+  `, [id])
+}
+
+// About content query functions
+const aboutContentQueries = {
+  // Get all published about content
+  getAllContent: () => query(`
+    SELECT * FROM about_content 
+    WHERE published = true 
+    ORDER BY display_order ASC, created_at DESC
+  `),
+
+  // Get content by section type (published only)
+  getContentByType: (sectionType) => query(`
+    SELECT * FROM about_content 
+    WHERE section_type = $1 AND published = true 
+    ORDER BY display_order ASC, created_at DESC
+  `, [sectionType]),
+
+  // Get all content (including unpublished) - for admin
+  getAllContentAdmin: () => query(`
+    SELECT * FROM about_content 
+    ORDER BY section_type ASC, display_order ASC, created_at DESC
+  `),
+
+  // Get content by ID
+  getContentById: (id) => query(`
+    SELECT * FROM about_content WHERE id = $1
+  `, [id]),
+
+  // Create new content
+  createContent: (contentData) => query(`
+    INSERT INTO about_content (section_type, title, description, image_url, content, display_order, published)
+    VALUES ($1, $2, $3, $4, $5, $6, $7)
+    RETURNING *
+  `, [
+    contentData.section_type,
+    contentData.title || null,
+    contentData.description || null,
+    contentData.image_url || null,
+    contentData.content ? JSON.stringify(contentData.content) : null,
+    contentData.display_order || 0,
+    contentData.published !== undefined ? contentData.published : true
+  ]),
+
+  // Update content
+  updateContent: (id, contentData) => query(`
+    UPDATE about_content 
+    SET section_type = $2, title = $3, description = $4, image_url = $5, 
+        content = $6, display_order = $7, published = $8, updated_at = now()
+    WHERE id = $1
+    RETURNING *
+  `, [
+    id,
+    contentData.section_type,
+    contentData.title || null,
+    contentData.description || null,
+    contentData.image_url || null,
+    contentData.content ? JSON.stringify(contentData.content) : null,
+    contentData.display_order || 0,
+    contentData.published !== undefined ? contentData.published : true
+  ]),
+
+  // Delete content
+  deleteContent: (id) => query(`
+    DELETE FROM about_content WHERE id = $1
+  `, [id]),
+
+  // Toggle publish status
+  togglePublish: (id) => query(`
+    UPDATE about_content 
+    SET published = NOT published, updated_at = now()
+    WHERE id = $1
+    RETURNING *
+  `, [id])
+}
+
+// Products content query functions
+const productsContentQueries = {
+  // Get all published products content
+  getAllContent: () => query(`
+    SELECT * FROM products_content 
+    WHERE published = true 
+    ORDER BY display_order ASC, created_at DESC
+  `),
+
+  // Get content by type (published only)
+  getContentByType: (sectionType) => query(`
+    SELECT * FROM products_content 
+    WHERE section_type = $1 AND published = true 
+    ORDER BY display_order ASC, created_at DESC
+  `, [sectionType]),
+
+  // Get all content (including unpublished) - for admin
+  getAllContentAdmin: () => query(`
+    SELECT * FROM products_content 
+    ORDER BY section_type ASC, display_order ASC, created_at DESC
+  `),
+
+  // Get content by ID
+  getContentById: (id) => query(`
+    SELECT * FROM products_content WHERE id = $1
+  `, [id]),
+
+  // Create new content
+  createContent: (contentData) => query(`
+    INSERT INTO products_content (section_type, title, description, image_url, content, display_order, published)
+    VALUES ($1, $2, $3, $4, $5, $6, $7)
+    RETURNING *
+  `, [
+    contentData.section_type,
+    contentData.title || null,
+    contentData.description || null,
+    contentData.image_url || null,
+    contentData.content ? JSON.stringify(contentData.content) : null,
+    contentData.display_order || 0,
+    contentData.published !== undefined ? contentData.published : true
+  ]),
+
+  // Update content
+  updateContent: (id, contentData) => query(`
+    UPDATE products_content 
+    SET section_type = $2, title = $3, description = $4, image_url = $5, 
+        content = $6, display_order = $7, published = $8, updated_at = now()
+    WHERE id = $1
+    RETURNING *
+  `, [
+    id,
+    contentData.section_type,
+    contentData.title || null,
+    contentData.description || null,
+    contentData.image_url || null,
+    contentData.content ? JSON.stringify(contentData.content) : null,
+    contentData.display_order || 0,
+    contentData.published !== undefined ? contentData.published : true
+  ]),
+
+  // Delete content
+  deleteContent: (id) => query(`
+    DELETE FROM products_content WHERE id = $1
+  `, [id]),
+
+  // Toggle publish status
+  togglePublish: (id) => query(`
+    UPDATE products_content 
+    SET published = NOT published, updated_at = now()
+    WHERE id = $1
+    RETURNING *
+  `, [id])
+}
+
+// Contact FAQ query functions
+const contactFaqQueries = {
+  // Get all published FAQs
+  getFaqs: () => query(`
+    SELECT * FROM contact_faq 
+    WHERE published = true 
+    ORDER BY display_order ASC, created_at DESC
+  `),
+
+  // Get all FAQs (including unpublished) - for admin
+  getAllFaqsAdmin: () => query(`
+    SELECT * FROM contact_faq 
+    ORDER BY display_order ASC, created_at DESC
+  `),
+
+  // Get FAQ by ID
+  getFaqById: (id) => query(`
+    SELECT * FROM contact_faq WHERE id = $1
+  `, [id]),
+
+  // Create new FAQ
+  createFaq: (faqData) => query(`
+    INSERT INTO contact_faq (question, answer, display_order, published)
+    VALUES ($1, $2, $3, $4)
+    RETURNING *
+  `, [
+    faqData.question,
+    faqData.answer,
+    faqData.display_order || 0,
+    faqData.published !== undefined ? faqData.published : true
+  ]),
+
+  // Update FAQ
+  updateFaq: (id, faqData) => query(`
+    UPDATE contact_faq 
+    SET question = $2, answer = $3, display_order = $4, published = $5, updated_at = now()
+    WHERE id = $1
+    RETURNING *
+  `, [
+    id,
+    faqData.question,
+    faqData.answer,
+    faqData.display_order || 0,
+    faqData.published !== undefined ? faqData.published : true
+  ]),
+
+  // Delete FAQ
+  deleteFaq: (id) => query(`
+    DELETE FROM contact_faq WHERE id = $1
+  `, [id]),
+
+  // Toggle publish status
+  togglePublish: (id) => query(`
+    UPDATE contact_faq 
+    SET published = NOT published, updated_at = now()
+    WHERE id = $1
+    RETURNING *
+  `, [id])
+}
+
+// Product image-specific query functions
+const productImageQueries = {
+  // Get all images for a product ordered by display_order
+  getImagesByProductId: (productId) => query(`
+    SELECT id, product_id, image_url, display_order, is_primary, created_at, updated_at
+    FROM product_images 
+    WHERE product_id = $1 
+    ORDER BY display_order ASC, created_at ASC
+  `, [productId]),
+
+  // Get primary image for a product
+  getPrimaryImageByProductId: (productId) => query(`
+    SELECT id, product_id, image_url, display_order, is_primary, created_at, updated_at
+    FROM product_images 
+    WHERE product_id = $1 AND is_primary = TRUE
+    LIMIT 1
+  `, [productId]),
+
+  // Create new image
+  createImage: (imageData) => query(`
+    INSERT INTO product_images (product_id, image_url, display_order, is_primary)
+    VALUES ($1, $2, $3, $4)
+    RETURNING *
+  `, [
+    imageData.product_id,
+    imageData.image_url,
+    imageData.display_order || 0,
+    imageData.is_primary || false
+  ]),
+
+  // Update image metadata
+  updateImage: (id, imageData) => query(`
+    UPDATE product_images 
+    SET display_order = $2, is_primary = $3, updated_at = now()
+    WHERE id = $1
+    RETURNING *
+  `, [
+    id,
+    imageData.display_order,
+    imageData.is_primary
+  ]),
+
+  // Delete image
+  deleteImage: (id) => query(`
+    DELETE FROM product_images WHERE id = $1
+  `, [id]),
+
+  // Set an image as primary (unset others for the same product)
+  setPrimaryImage: (productId, imageId) => query(`
+    WITH updated AS (
+      UPDATE product_images 
+      SET is_primary = CASE WHEN id = $2 THEN TRUE ELSE FALSE END,
+          updated_at = now()
+      WHERE product_id = $1
+      RETURNING *
+    )
+    SELECT * FROM updated WHERE id = $2
+  `, [productId, imageId]),
+
+  // Reorder images (accepts array of {id, display_order})
+  reorderImages: async (productId, imageOrders) => {
+    // Use a transaction to update multiple images
+    const client = await pool.connect()
+    try {
+      await client.query('BEGIN')
+      
+      for (const order of imageOrders) {
+        await client.query(`
+          UPDATE product_images 
+          SET display_order = $1, updated_at = now()
+          WHERE id = $2 AND product_id = $3
+        `, [order.display_order, order.id, productId])
+      }
+      
+      await client.query('COMMIT')
+      
+      // Return updated images
+      return await query(`
+        SELECT * FROM product_images 
+        WHERE product_id = $1 
+        ORDER BY display_order ASC
+      `, [productId])
+    } catch (error) {
+      await client.query('ROLLBACK')
+      throw error
+    } finally {
+      client.release()
+    }
+  },
+
+  // Get image by ID
+  getImageById: (id) => query(`
+    SELECT * FROM product_images WHERE id = $1
+  `, [id])
+}
+
 module.exports = {
   pool,
   query,
   categoryQueries,
   productQueries,
+  productImageQueries,
   documentQueries,
-  fileStorageQueries
+  fileStorageQueries,
+  homeContentQueries,
+  solutionsContentQueries,
+  aboutContentQueries,
+  productsContentQueries,
+  contactFaqQueries
 }

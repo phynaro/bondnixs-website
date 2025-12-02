@@ -1,75 +1,50 @@
-const Solutions = () => {
-  const solutions = [
-    {
-      title: "Electronics Manufacturing",
-      description: "Complete dispensing solutions for electronics assembly and manufacturing",
-      features: [
-        "PCB assembly automation",
-        "Component protection coating",
-        "Precision solder paste dispensing",
-        "Quality control integration"
-      ],
-      icon: "🔌"
-    },
-    {
-      title: "Automotive Industry",
-      description: "Specialized solutions for automotive electronics and component manufacturing",
-      features: [
-        "Automotive grade materials",
-        "High-volume production support",
-        "Environmental compliance",
-        "Durability testing"
-      ],
-      icon: "🚗"
-    },
-    {
-      title: "Medical Device Manufacturing",
-      description: "Precision solutions for medical device assembly and packaging",
-      features: [
-        "Clean room compatibility",
-        "Biocompatible materials",
-        "Regulatory compliance",
-        "Traceability systems"
-      ],
-      icon: "🏥"
-    },
-    {
-      title: "Aerospace & Defense",
-      description: "High-reliability solutions for aerospace and defense applications",
-      features: [
-        "Military grade standards",
-        "Extreme environment testing",
-        "Documentation compliance",
-        "Long-term support"
-      ],
-      icon: "✈️"
-    }
-  ]
+import { useState, useEffect } from 'react'
+import { solutionsContentAPI, getImageUrl } from '../services/api'
 
-  const caseStudies = [
-    {
-      title: "Electronics Manufacturer Success Story",
-      description: "How we helped a leading electronics manufacturer increase production efficiency by 40%",
-      results: [
-        "40% increase in production efficiency",
-        "60% reduction in material waste",
-        "99.5% quality consistency achieved",
-        "ROI achieved in 8 months"
-      ],
-      industry: "Electronics Manufacturing"
-    },
-    {
-      title: "Automotive Supplier Optimization",
-      description: "Complete system overhaul for automotive component supplier",
-      results: [
-        "50% faster cycle times",
-        "Zero defect rate achieved",
-        "30% cost reduction",
-        "24/7 production capability"
-      ],
-      industry: "Automotive"
+const Solutions = () => {
+  const [heroContent, setHeroContent] = useState(null)
+  const [solutions, setSolutions] = useState([])
+  const [caseStudies, setCaseStudies] = useState([])
+  const [processSteps, setProcessSteps] = useState([])
+  const [benefits, setBenefits] = useState([])
+  const [loading, setLoading] = useState(true)
+
+  useEffect(() => {
+    fetchContent()
+  }, [])
+
+  const fetchContent = async () => {
+    try {
+      const [heroResponse, solutionsResponse, caseStudiesResponse, processResponse, benefitsResponse] = await Promise.all([
+        solutionsContentAPI.getContentByType('hero'),
+        solutionsContentAPI.getContentByType('industry_solution'),
+        solutionsContentAPI.getContentByType('case_study'),
+        solutionsContentAPI.getContentByType('process_step'),
+        solutionsContentAPI.getContentByType('benefit')
+      ])
+      
+      if (heroResponse.data.data.length > 0) {
+        setHeroContent(heroResponse.data.data[0])
+      }
+      setSolutions(solutionsResponse.data.data)
+      setCaseStudies(caseStudiesResponse.data.data)
+      setProcessSteps(processResponse.data.data)
+      setBenefits(benefitsResponse.data.data)
+    } catch (error) {
+      console.error('Error fetching solutions content:', error)
+    } finally {
+      setLoading(false)
     }
-  ]
+  }
+
+
+  if (loading) {
+    return (
+      <div className="min-h-screen flex items-center justify-center">
+        <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-primary-600"></div>
+      </div>
+    )
+  }
 
   return (
     <div>
@@ -78,10 +53,10 @@ const Solutions = () => {
         <div className="container-custom">
           <div className="max-w-4xl mx-auto text-center">
             <h1 className="text-4xl md:text-5xl font-bold mb-6">
-              Industry Solutions
+              {heroContent?.title || 'Industry Solutions'}
             </h1>
             <p className="text-xl text-primary-100">
-              Tailored dispensing solutions for various industries and applications
+              {heroContent?.description || 'Tailored dispensing solutions for various industries and applications'}
             </p>
           </div>
         </div>
@@ -100,26 +75,34 @@ const Solutions = () => {
           </div>
 
           <div className="grid grid-cols-1 md:grid-cols-2 gap-8">
-            {solutions.map((solution, index) => (
-              <div key={index} className="bg-white rounded-lg shadow-lg overflow-hidden">
+            {solutions.map((solution) => (
+              <div key={solution.id} className="bg-white rounded-lg shadow-lg overflow-hidden">
                 <div className="p-8">
                   <div className="flex items-center mb-6">
-                    <div className="text-4xl mr-4">{solution.icon}</div>
+                    {solution.image_url && (
+                      <img
+                        src={getImageUrl(solution.image_url)}
+                        alt={solution.title}
+                        className="w-16 h-16 object-cover rounded-lg mr-4"
+                      />
+                    )}
                     <div>
                       <h3 className="text-2xl font-bold text-gray-900">{solution.title}</h3>
                     </div>
                   </div>
                   <p className="text-gray-600 mb-6">{solution.description}</p>
-                  <ul className="space-y-2">
-                    {solution.features.map((feature, featureIndex) => (
-                      <li key={featureIndex} className="flex items-center text-gray-700">
-                        <svg className="w-5 h-5 text-primary-600 mr-3 flex-shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M5 13l4 4L19 7" />
-                        </svg>
-                        {feature}
-                      </li>
-                    ))}
-                  </ul>
+                  {solution.content?.features && (
+                    <ul className="space-y-2">
+                      {solution.content.features.map((feature, featureIndex) => (
+                        <li key={featureIndex} className="flex items-center text-gray-700">
+                          <svg className="w-5 h-5 text-primary-600 mr-3 flex-shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M5 13l4 4L19 7" />
+                          </svg>
+                          {feature}
+                        </li>
+                      ))}
+                    </ul>
+                  )}
                 </div>
               </div>
             ))}
@@ -140,31 +123,35 @@ const Solutions = () => {
           </div>
 
           <div className="space-y-12">
-            {caseStudies.map((study, index) => (
-              <div key={index} className="bg-white rounded-lg shadow-lg overflow-hidden">
+            {caseStudies.map((study) => (
+              <div key={study.id} className="bg-white rounded-lg shadow-lg overflow-hidden">
                 <div className="p-8">
                   <div className="flex items-start justify-between mb-6">
                     <div>
                       <h3 className="text-2xl font-bold text-gray-900 mb-2">{study.title}</h3>
                       <p className="text-gray-600 mb-4">{study.description}</p>
-                      <span className="inline-block bg-primary-100 text-primary-800 px-3 py-1 rounded-full text-sm font-medium">
-                        {study.industry}
-                      </span>
+                      {study.content?.industry && (
+                        <span className="inline-block bg-primary-100 text-primary-800 px-3 py-1 rounded-full text-sm font-medium">
+                          {study.content.industry}
+                        </span>
+                      )}
                     </div>
                   </div>
                   
-                  <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
-                    {study.results.map((result, resultIndex) => (
-                      <div key={resultIndex} className="bg-gray-50 rounded-lg p-4 text-center">
-                        <div className="text-2xl font-bold text-primary-600 mb-1">
-                          {result.split(' ')[0]}
+                  {study.content?.results && (
+                    <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
+                      {study.content.results.map((result, resultIndex) => (
+                        <div key={resultIndex} className="bg-gray-50 rounded-lg p-4 text-center">
+                          <div className="text-2xl font-bold text-primary-600 mb-1">
+                            {result.split(' ')[0]}
+                          </div>
+                          <div className="text-sm text-gray-600">
+                            {result.split(' ').slice(1).join(' ')}
+                          </div>
                         </div>
-                        <div className="text-sm text-gray-600">
-                          {result.split(' ').slice(1).join(' ')}
-                        </div>
-                      </div>
-                    ))}
-                  </div>
+                      ))}
+                    </div>
+                  )}
                 </div>
               </div>
             ))}
@@ -185,31 +172,10 @@ const Solutions = () => {
           </div>
 
           <div className="grid grid-cols-1 md:grid-cols-4 gap-8">
-            {[
-              {
-                step: "01",
-                title: "Consultation",
-                description: "Understanding your requirements and challenges"
-              },
-              {
-                step: "02", 
-                title: "Design",
-                description: "Creating customized solutions and system design"
-              },
-              {
-                step: "03",
-                title: "Implementation",
-                description: "Installation, testing, and system integration"
-              },
-              {
-                step: "04",
-                title: "Support",
-                description: "Ongoing maintenance and technical support"
-              }
-            ].map((process, index) => (
-              <div key={index} className="text-center">
+            {processSteps.map((process) => (
+              <div key={process.id} className="text-center">
                 <div className="w-16 h-16 bg-primary-600 text-white rounded-full flex items-center justify-center mx-auto mb-4 text-xl font-bold">
-                  {process.step}
+                  {process.content?.step || '01'}
                 </div>
                 <h3 className="text-xl font-semibold text-gray-900 mb-2">{process.title}</h3>
                 <p className="text-gray-600">{process.description}</p>
@@ -232,35 +198,21 @@ const Solutions = () => {
           </div>
 
           <div className="grid grid-cols-1 md:grid-cols-3 gap-8">
-            <div className="bg-white rounded-lg shadow-md p-8 text-center">
-              <div className="w-16 h-16 bg-primary-100 rounded-full flex items-center justify-center mx-auto mb-6">
-                <svg className="w-8 h-8 text-primary-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M13 10V3L4 14h7v7l9-11h-7z" />
-                </svg>
+            {benefits.map((benefit) => (
+              <div key={benefit.id} className="bg-white rounded-lg shadow-md p-8 text-center">
+                {benefit.image_url && (
+                  <div className="w-16 h-16 rounded-full flex items-center justify-center mx-auto mb-6 overflow-hidden">
+                    <img
+                      src={getImageUrl(benefit.image_url)}
+                      alt={benefit.title}
+                      className="w-full h-full object-cover"
+                    />
+                  </div>
+                )}
+                <h3 className="text-xl font-semibold mb-4">{benefit.title}</h3>
+                <p className="text-gray-600">{benefit.description}</p>
               </div>
-              <h3 className="text-xl font-semibold mb-4">Increased Efficiency</h3>
-              <p className="text-gray-600">Optimize your production processes and reduce cycle times with our advanced automation solutions</p>
-            </div>
-
-            <div className="bg-white rounded-lg shadow-md p-8 text-center">
-              <div className="w-16 h-16 bg-primary-100 rounded-full flex items-center justify-center mx-auto mb-6">
-                <svg className="w-8 h-8 text-primary-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z" />
-                </svg>
-              </div>
-              <h3 className="text-xl font-semibold mb-4">Quality Assurance</h3>
-              <p className="text-gray-600">Ensure consistent quality and reduce defects with precision dispensing and automated quality control</p>
-            </div>
-
-            <div className="bg-white rounded-lg shadow-md p-8 text-center">
-              <div className="w-16 h-16 bg-primary-100 rounded-full flex items-center justify-center mx-auto mb-6">
-                <svg className="w-8 h-8 text-primary-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 8c-1.657 0-3 .895-3 2s1.343 2 3 2 3 .895 3 2-1.343 2-3 2m0-8c1.11 0 2.08.402 2.599 1M12 8V7m0 1v8m0 0v1m0-1c-1.11 0-2.08-.402-2.599-1" />
-                </svg>
-              </div>
-              <h3 className="text-xl font-semibold mb-4">Cost Reduction</h3>
-              <p className="text-gray-600">Reduce material waste, labor costs, and downtime with efficient automation and optimized processes</p>
-            </div>
+            ))}
           </div>
         </div>
       </section>

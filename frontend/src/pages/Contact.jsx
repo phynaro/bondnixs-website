@@ -1,5 +1,5 @@
-import { useState } from 'react'
-import { contactAPI } from '../services/api'
+import { useState, useEffect } from 'react'
+import { contactAPI, contactFaqAPI } from '../services/api'
 
 const Contact = () => {
   const [formData, setFormData] = useState({
@@ -13,6 +13,20 @@ const Contact = () => {
   const [isSubmitting, setIsSubmitting] = useState(false)
   const [submitStatus, setSubmitStatus] = useState(null) // 'success', 'error', null
   const [errorMessage, setErrorMessage] = useState('')
+  const [faqs, setFaqs] = useState([])
+
+  useEffect(() => {
+    fetchFaqs()
+  }, [])
+
+  const fetchFaqs = async () => {
+    try {
+      const response = await contactFaqAPI.getFaqs()
+      setFaqs(response.data.data)
+    } catch (error) {
+      console.error('Error fetching FAQs:', error)
+    }
+  }
 
   const handleChange = (e) => {
     setFormData({
@@ -385,29 +399,18 @@ const Contact = () => {
           </div>
 
           <div className="max-w-3xl mx-auto space-y-6">
-            {[
-              {
-                question: "What types of dispensing applications do you support?",
-                answer: "We support a wide range of applications including potting, conformal coating, solder paste dispensing, and custom applications. Our solutions are designed for electronics, automotive, medical device, and aerospace industries."
-              },
-              {
-                question: "Do you provide installation and training services?",
-                answer: "Yes, we provide comprehensive installation, testing, and training services. Our expert team ensures proper system setup and provides training for your operators to maximize system efficiency."
-              },
-              {
-                question: "What kind of after-sales support do you offer?",
-                answer: "We offer comprehensive after-sales support including maintenance, troubleshooting, system upgrades, and spare parts supply. Our technical support team is available to assist with any issues."
-              },
-              {
-                question: "Can you customize solutions for specific requirements?",
-                answer: "Absolutely. We specialize in custom solutions and can modify our standard products or create entirely new systems to meet your specific requirements and applications."
-              }
-            ].map((faq, index) => (
-              <div key={index} className="bg-white rounded-lg shadow-md p-6">
-                <h3 className="text-lg font-semibold text-gray-900 mb-2">{faq.question}</h3>
-                <p className="text-gray-600">{faq.answer}</p>
+            {faqs.length > 0 ? (
+              faqs.map((faq) => (
+                <div key={faq.id} className="bg-white rounded-lg shadow-md p-6">
+                  <h3 className="text-lg font-semibold text-gray-900 mb-2">{faq.question}</h3>
+                  <p className="text-gray-600">{faq.answer}</p>
+                </div>
+              ))
+            ) : (
+              <div className="bg-white rounded-lg shadow-md p-6">
+                <p className="text-gray-600">No FAQs available at the moment.</p>
               </div>
-            ))}
+            )}
           </div>
         </div>
       </section>
