@@ -84,11 +84,19 @@ const About = () => {
               </div>
               <div className="bg-gray-100 rounded-lg p-8">
                 <div className="text-center">
-                  <img 
-                    src="/logo.jpg" 
-                    alt="BONDNIXS Logo" 
-                    className="w-32 h-32 object-contain mx-auto mb-6"
-                  />
+                  {storyContent?.image_url ? (
+                    <img 
+                      src={getImageUrl(storyContent.image_url)} 
+                      alt={storyContent?.title || 'BONDNIXS'} 
+                      className="w-32 h-32 object-contain mx-auto mb-6"
+                    />
+                  ) : (
+                    <img 
+                      src="/logo.jpg" 
+                      alt="BONDNIXS Logo" 
+                      className="w-32 h-32 object-contain mx-auto mb-6"
+                    />
+                  )}
                 <h3 className="text-2xl font-bold text-gray-900 mb-2">BONDNIXS CO., LTD.</h3>
                   <p className="text-gray-600">Engineering Excellence Since 2014</p>
                 </div>
