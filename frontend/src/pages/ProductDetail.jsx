@@ -163,7 +163,7 @@ const ProductDetail = () => {
                   <div className="space-y-4">
                     {/* Main Image */}
                     <div 
-                      className="relative w-full aspect-square bg-gray-100 rounded-lg overflow-hidden cursor-pointer group"
+                      className="relative w-full aspect-square bg-transparent rounded-lg overflow-hidden cursor-pointer group"
                       onClick={() => setIsImageGalleryOpen(true)}
                     >
                       <img

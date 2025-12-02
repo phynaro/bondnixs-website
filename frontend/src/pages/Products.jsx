@@ -172,10 +172,10 @@ const Products = () => {
                       <Link
                         key={product.id}
                         to={`/products/${encodeURIComponent(product.model)}`}
-                        className="bg-white rounded-lg shadow-lg overflow-hidden hover:shadow-xl transition-shadow duration-300 group"
+                        className="bg-white rounded-lg shadow-md hover:shadow-lg transition-shadow duration-300 group overflow-hidden"
                       >
                         {product.primary_image_url ? (
-                          <div className="w-full h-48 bg-gray-100 flex items-center justify-center overflow-hidden">
+                          <div className="w-full h-48 bg-transparent flex items-center justify-center overflow-hidden">
                             <img
                               src={getImageUrl(product.primary_image_url)}
                               alt={product.name}
@@ -183,7 +183,7 @@ const Products = () => {
                             />
                           </div>
                         ) : (
-                          <div className="w-full h-48 bg-gray-200 flex items-center justify-center">
+                          <div className="w-full h-48 bg-transparent flex items-center justify-center">
                             <div className="text-center">
                               <div className="text-4xl text-gray-400 mb-2">📦</div>
                               <p className="text-gray-500 text-sm">No image</p>
