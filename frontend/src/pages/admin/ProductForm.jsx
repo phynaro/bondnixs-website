@@ -58,9 +58,23 @@ const ProductForm = () => {
   const fetchProduct = useCallback(async () => {
     try {
       const response = await productAPI.getAllProductsAdmin()
+      
+      // Ensure all products have images array before processing (fixes d.images.length error)
+      if (response.data && response.data.data && Array.isArray(response.data.data)) {
+        response.data.data = response.data.data.map(d => ({
+          ...d,
+          images: (d.images && Array.isArray(d.images)) ? d.images : []
+        }))
+      }
+      
       const product = response.data.data.find(p => p.id === id)
       
       if (product) {
+        // Ensure images is always an array before processing
+        if (!product.images || !Array.isArray(product.images)) {
+          product.images = []
+        }
+        
         // Detect format and load accordingly
         if (isTabularSpecs(product.specs)) {
           // Tabular format
@@ -79,7 +93,7 @@ const ProductForm = () => {
             category_id: product.category_id || '',
             published: product.published,
             display_order: product.display_order || 0,
-            image: null
+            images: [] // Fixed: should be images (plural), not image (singular)
           })
         } else {
           // Key-value format
